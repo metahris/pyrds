@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Health",
+    "description": "API health and readiness checks."
+  },
+  {
+    "name": "Pricing",
+    "description": "Pricing workflow endpoints."
+  }
+]

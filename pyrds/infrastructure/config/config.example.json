@@ -1,0 +1,56 @@
+{
+  "pyrds_api": {
+    "host": "http://localhost",
+    "port": 5000,
+    "key": "REPLACE_ME",
+    "env": "preprod",
+    "pyrds_dir": "/path/to/pyrds_dir",
+    "xml_updater_path": ""
+  },
+  "couch_base_api": {
+    "port": 5202,
+    "authentication": {
+      "certificate": "psweb.crt",
+      "type": "token_based",
+      "token": {
+        "preprod": "REPLACE_ME",
+        "dev1": "REPLACE_ME"
+      },
+      "token_url": "",
+      "client_id": "",
+      "client_secret": "",
+      "grant_type": "",
+      "scope": []
+    }
+  },
+  "environment": {
+    "preprod": "https://example-preprod.internal",
+    "dev1": "https://example-dev1.internal",
+    "prod": "https://example-prod.internal"
+  },
+  "proxies": {
+    "http": "",
+    "https": ""
+  },
+  "psweb_api": {
+    "port": 4100
+  },
+  "ps_api": {
+    "port": 5202
+  },
+  "market_data_api": {
+    "port": 9003
+  },
+  "trade_api": {
+    "port": 5112
+  },
+  "qml_generator_api": {
+    "port": 7771
+  },
+  "maps_elib_api": {
+    "port": 5000
+  },
+  "risk_studio_api": {
+    "port": 4300
+  }
+}

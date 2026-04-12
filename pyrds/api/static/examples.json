@@ -1,0 +1,65 @@
+{
+  "pricing": {
+    "simple": {
+      "summary": "Price with explicit payload and optional QML inputs",
+      "value": {
+        "request_id": "REQ-001",
+        "ps_request": {
+          "valuationDate": "2026-04-12",
+          "lagInDaysForBackprice": 0,
+          "gridPricerTechnicalDetails": {
+            "cartography": "FRTB_BOCOLLAT",
+            "analyseName": "MCR_MTM",
+            "directQmlRunnerCall": true,
+            "qmlRunner": "QMLRPREGRPC",
+            "foCluster": "OTRPLI1",
+            "qlibVersion": "GMDPRS_PS_LATEST",
+            "outputCurrency": "USD",
+            "subtaskPolicy": "AlwaysDistribute"
+          }
+        },
+        "trade_id": "TRADE-001",
+        "product_qml": "<Product />",
+        "pricing_parameters_qml": "<PricingParams />",
+        "market_data": {
+          "EUR|BASE": "<MarketData />"
+        }
+      }
+    },
+    "full_qml": {
+      "summary": "Create/fill request dataset with request and instruction-set QML",
+      "value": {
+        "runner": "QMLRPREGRPC",
+        "instruction_set_qml": "<InstructionSet />",
+        "request_qml": "<Request />"
+      }
+    },
+    "batch": {
+      "summary": "Price multiple PsRequest payloads asynchronously",
+      "value": {
+        "requests": [
+          {
+            "requestId": "REQ-001",
+            "valuationDate": "2026-04-12",
+            "gridPricerTechnicalDetails": {
+              "qmlRunner": "QMLRPREGRPC",
+              "cartography": "FRTB_BOCOLLAT",
+              "foCluster": "OTRPLI1",
+              "outputCurrency": "USD"
+            }
+          },
+          {
+            "requestId": "REQ-002",
+            "valuationDate": "2026-04-12",
+            "gridPricerTechnicalDetails": {
+              "qmlRunner": "QMLRPREGRPC",
+              "cartography": "FRTB_BOCOLLAT",
+              "foCluster": "OTRPLI1",
+              "outputCurrency": "USD"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

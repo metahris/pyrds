@@ -1,0 +1,5 @@
+<Product>
+  <TradeId>MOCK-TRADE-001</TradeId>
+  <ProductName>MockProduct</ProductName>
+  <Currency>EUR</Currency>
+</Product>

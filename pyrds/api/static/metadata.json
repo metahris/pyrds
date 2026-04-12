@@ -1,0 +1,9 @@
+{
+  "title": "Pyrds",
+  "description": "Python SDK and minimal API for pricing workflows over Market Data, Trades, and Pricing Service APIs.",
+  "version": "0.1.0",
+  "contact": {
+    "name": "Quant Transverse",
+    "email": "transverse@gmt.qr"
+  }
+}

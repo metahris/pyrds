@@ -44,7 +44,6 @@ class NullLogger:
 
 
 class BaseAPI:
-    DEFAULT_TIMEOUT = httpx.Timeout(connect=5.0, read=30.0, write=30.0, pool=30.0)
     RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503, 504}
     SAFE_RETRY_METHODS = {"GET", "DELETE"}
 
@@ -85,14 +84,14 @@ class BaseAPI:
         self._sync_client = httpx.Client(
             verify=self._verify,
             proxy=self._proxy,
-            timeout=self.DEFAULT_TIMEOUT,
+            timeout=None,
             limits=limits,
             headers=headers,
         )
         self._async_client = httpx.AsyncClient(
             verify=self._verify,
             proxy=self._proxy,
-            timeout=self.DEFAULT_TIMEOUT,
+            timeout=None,
             limits=limits,
             headers=headers,
         )

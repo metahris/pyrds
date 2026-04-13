@@ -1,5 +1,5 @@
 {
-  "dir": "working_dir",
+  "dir": "test-override",
   "ps_request": {
     "tradeSpecs": {
       "spec": "ID",
@@ -7,7 +7,7 @@
         "OT:28405306"
       ]
     },
-    "valuationDate": "2024/06/26 23:59:59",
+    "valuationDate": "2025/01/18 23:59:59",
     "gridPricerTechnicalDetails": {
       "cartography": "FRTB_BOCOLLAT",
       "analyseName": "MCR_MTM",
@@ -24,33 +24,45 @@
   "override_plan": {
     "scenarios": [
       {
-        "scenario_id": "replace_ppm_and_add_marketdata",
-        "description": "Replace pricing params for every trade in the OT trade container and add extra local market data beside the OT market data set.",
+        "scenario_id": "replace_all_ppm_add_local_marketdata",
+        "description": "Replace every trade pricing params with pricingparam_ptf.xml and add all local data QML files to an extra market data set.",
         "overrides": [
           {
-            "name": "replace_all_pricingparams",
+            "name": "replace_all_trade_pricingparams",
             "target_type": "pricingparams",
             "operation": "replace_file",
             "apply_to_all": true,
             "source": {
-              "file_path": "inputs/data/ppm_to_replace.xml"
+              "file_path": "inputs/trade/pricingparam_ptf.xml"
             }
           },
           {
-            "name": "add_extra_market_data",
+            "name": "add_local_data_to_marketdata",
             "target_type": "marketdata",
             "operation": "add_files",
             "target_sources": [
               {
-                "target_id": "static_data|BASE",
+                "target_id": "CUSTOMMODEL_OPTION-EUR-RT",
                 "source": {
-                  "file_path": "inputs/data/static_data.xml"
+                  "file_path": "inputs/data/CUSTOMMODEL_OPTION-EUR-RT.xml"
                 }
               },
               {
-                "target_id": "YCSETUP|BASE",
+                "target_id": "modelsetup_berm_eur_OPTION-EUR-RT",
                 "source": {
-                  "file_path": "inputs/data/ycsetup_BASE.xml"
+                  "file_path": "inputs/data/modelsetup_berm_eur_OPTION-EUR-RT.xml"
+                }
+              },
+              {
+                "target_id": "overrideParams_eur",
+                "source": {
+                  "file_path": "inputs/data/overrideParams_eur.xml"
+                }
+              },
+              {
+                "target_id": "pricingparam",
+                "source": {
+                  "file_path": "inputs/data/pricingparam.xml"
                 }
               }
             ]

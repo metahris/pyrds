@@ -94,7 +94,9 @@ Replace the `<parameters>` block:
 
 ### Market Data: Add Extra Files In OT Mode
 
-In OT override mode, use `add_file` or `add_files` when the base OT response already contains a market data set and you need to add extra local market data beside it.
+In OT override mode, use `add_file` or `add_files` when the base OT response already contains a market data set and you need to add extra local files beside it.
+
+This also covers pricing-param QML files that pricing expects to find through market data keys.
 
 Pyrds creates a new market data set for the added files and sends both set ids to pricing:
 
@@ -106,20 +108,20 @@ Example:
 
 ```json
 {
-  "name": "add_extra_market_data",
+  "name": "add_pricingparams_as_marketdata",
   "target_type": "marketdata",
   "operation": "add_files",
   "target_sources": [
     {
-      "target_id": "static_data|BASE",
+      "target_id": "ppm_y",
       "source": {
-        "file_path": "inputs/data/static_data.xml"
+        "file_path": "inputs/data/ppm_y.xml"
       }
     },
     {
-      "target_id": "YCSETUP|BASE",
+      "target_id": "ppm_z",
       "source": {
-        "file_path": "inputs/data/ycsetup_BASE.xml"
+        "file_path": "inputs/data/ppm_z.xml"
       }
     }
   ]

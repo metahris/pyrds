@@ -309,24 +309,26 @@ Add several market data QML files to a scenario.
 
 This operation is only supported for `target_type=marketdata`.
 
+The files do not have to be classic curve/model market data. If pricing expects pricing-param QML files to be available through the market data container, add them with `target_type=marketdata` and explicit `target_id` values.
+
 Use `target_sources` when you want to explicitly control each market data key:
 
 ```json
 {
-  "name": "add_extra_market_data",
+  "name": "add_pricingparams_as_marketdata",
   "target_type": "marketdata",
   "operation": "add_files",
   "target_sources": [
     {
-      "target_id": "static_data|BASE",
+      "target_id": "ppm_y",
       "source": {
-        "file_path": "inputs/data/static_data.xml"
+        "file_path": "inputs/data/ppm_y.xml"
       }
     },
     {
-      "target_id": "YCSETUP|BASE",
+      "target_id": "ppm_z",
       "source": {
-        "file_path": "inputs/data/ycsetup_BASE.xml"
+        "file_path": "inputs/data/ppm_z.xml"
       }
     }
   ]
@@ -642,11 +644,19 @@ Example file:
 examples/api_payloads/overrides/marketdata_apply_to_all_replace_block.json
 ```
 
-### Scenario 2a: Add Extra Market Data Beside OT Market Data
+### Scenario 2a: Add Extra Pricing Params Beside OT Market Data
 
 Use `marketdata + add_file` or `marketdata + add_files`.
 
+This is useful when the first OT pricing returns a market data set, but the second pricing also needs local pricing-param QML files referenced through market data keys.
+
 This does not mutate the OT market data set. Pyrds creates an additional market data set and adds it before the OT/cloned set in `marketDataSetIds`.
+
+Typical flow:
+
+- `pricingparams + replace_file + apply_to_all=true` replaces every trade pricing params with `ppm_to_replace.xml`.
+- `marketdata + add_files` adds `ppm_y.xml` and `ppm_z.xml` to an extra market data set.
+- The recompute uses both market data sets: `[extra_local_set_id, base_or_cloned_ot_set_id]`.
 
 Example file:
 
@@ -688,6 +698,30 @@ and replaces every pricing params QML with one common file:
 
 ```text
 [(P1, ppm_to_replace), (P12, ppm_to_replace), ...]
+```
+
+If the common file refers to extra pricing-param QMLs by market data key, add those files in the same override scenario:
+
+```json
+{
+  "name": "add_pricingparams_as_marketdata",
+  "target_type": "marketdata",
+  "operation": "add_files",
+  "target_sources": [
+    {
+      "target_id": "ppm_y",
+      "source": {
+        "file_path": "inputs/data/ppm_y.xml"
+      }
+    },
+    {
+      "target_id": "ppm_z",
+      "source": {
+        "file_path": "inputs/data/ppm_z.xml"
+      }
+    }
+  ]
+}
 ```
 
 Example file:

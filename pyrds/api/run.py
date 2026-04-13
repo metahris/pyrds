@@ -31,14 +31,20 @@ def main() -> None:
     )
     host = args.host or _normalize_host(settings.pyrds_api.host)
     port = args.port or settings.pyrds_api.port
-    reload = args.reload or args.debug
     log_level = args.log_level or ("debug" if args.debug else "info")
+    app_target = _resolve_app_target(debug=args.debug)
+
+    print(
+        f"Starting Pyrds API on {host}:{port} "
+        f"(debug={args.debug}, reload={args.reload}, log_level={log_level})",
+        flush=True,
+    )
 
     uvicorn.run(
-        "pyrds.api.run:app",
+        app_target,
         host=host,
         port=port,
-        reload=reload,
+        reload=args.reload,
         log_level=log_level,
     )
 
@@ -54,7 +60,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Enable Uvicorn reload and debug logging for local development.",
+        help="Run in-process with debug logging so IDE breakpoints are hit.",
     )
     parser.add_argument(
         "--reload",
@@ -73,6 +79,15 @@ def _normalize_host(value: str | None) -> str:
     raw_value = (value or "127.0.0.1").strip()
     parsed = urlparse(raw_value if "://" in raw_value else f"//{raw_value}")
     return parsed.hostname or raw_value
+
+
+def _resolve_app_target(*, debug: bool) -> Any:
+    if not debug:
+        return "pyrds.api.run:app"
+
+    from pyrds.api.main import app
+
+    return app
 
 if __name__ == "__main__":
     main()

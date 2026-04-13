@@ -6,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from pyrds.api.dependencies import get_client, get_settings
+from pyrds.api.logging import log_api_event
 from pyrds.api.schemas import ParsedResultResponse, ResultXmlParseRequest
 from pyrds.api.working_dir import resolve_working_dir
 from pyrds.domain.exceptions import DumpError, QmlInputNotFoundError, SerializationError, ValidationError
@@ -21,6 +22,7 @@ def parse_price_result(
     client: PyrdsClient = Depends(get_client),
     settings: Settings = Depends(get_settings),
 ) -> ParsedResultResponse:
+    log_api_event("Parse price result started", source=_source_label(request), dump_excel=request.dump_excel)
     qml, excel_dir = _load_result_qml(request=request, settings=settings)
     handler = _build_qml_handler(client)
     parsed = handler.parse_result_price(result_qml=qml)
@@ -30,6 +32,7 @@ def parse_price_result(
         excel_dir=excel_dir,
         default_name="price_result.xlsx",
     )
+    log_api_event("Parse price result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
 
 
@@ -39,6 +42,7 @@ def parse_deltair_result(
     client: PyrdsClient = Depends(get_client),
     settings: Settings = Depends(get_settings),
 ) -> ParsedResultResponse:
+    log_api_event("Parse DELTAIR result started", source=_source_label(request), dump_excel=request.dump_excel)
     qml, excel_dir = _load_result_qml(request=request, settings=settings)
     handler = _build_qml_handler(client)
     parsed = handler.parse_result_deltair(result_qml=qml)
@@ -48,6 +52,7 @@ def parse_deltair_result(
         excel_dir=excel_dir,
         default_name="deltair_result.xlsx",
     )
+    log_api_event("Parse DELTAIR result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
 
 
@@ -57,6 +62,7 @@ def parse_vegair_result(
     client: PyrdsClient = Depends(get_client),
     settings: Settings = Depends(get_settings),
 ) -> ParsedResultResponse:
+    log_api_event("Parse VEGAIR result started", source=_source_label(request), dump_excel=request.dump_excel)
     qml, excel_dir = _load_result_qml(request=request, settings=settings)
     handler = _build_qml_handler(client)
     parsed = handler.parse_result_vegair(result_qml=qml)
@@ -66,6 +72,7 @@ def parse_vegair_result(
         excel_dir=excel_dir,
         default_name="vegair_result.xlsx",
     )
+    log_api_event("Parse VEGAIR result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
 
 
@@ -75,6 +82,7 @@ def parse_calibration_result(
     client: PyrdsClient = Depends(get_client),
     settings: Settings = Depends(get_settings),
 ) -> ParsedResultResponse:
+    log_api_event("Parse calibration result started", source=_source_label(request), dump_excel=request.dump_excel)
     qml, excel_dir = _load_result_qml(request=request, settings=settings)
     handler = _build_qml_handler(client)
     parsed = handler.parse_calibrator_results(result_qml=qml)
@@ -84,7 +92,14 @@ def parse_calibration_result(
         excel_dir=excel_dir,
         default_name="calibration_result.xlsx",
     )
+    log_api_event("Parse calibration result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
+
+
+def _source_label(request: ResultXmlParseRequest) -> str:
+    if request.inline_xml:
+        return "inline_xml"
+    return f"{request.pyrds_dir}/{request.file_name}"
 
 
 def _load_result_qml(request: ResultXmlParseRequest, settings: Settings) -> tuple[str, Path | None]:

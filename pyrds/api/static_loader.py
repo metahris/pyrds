@@ -23,7 +23,7 @@ def load_api_metadata() -> dict[str, Any]:
         {
             "title": "Pyrds",
             "description": "Pricing workflow API.",
-            "version": "0.1.0",
+            "version": "3.0.0",
         },
     )
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from copy import deepcopy
 from os import listdir
-from os.path import isdir, join
+from os.path import basename, isdir, join
 from typing import Any
 
 from pyrds.application.runners.base_runner import BaseRunner
@@ -15,13 +15,16 @@ from pyrds.domain.ps_request import PsRequest
 class Backtester(BaseRunner):
     @staticmethod
     def adjust_file_name(name: str, carto: str) -> str:
-        index = name.find(carto)
+        if not carto:
+            return name
+
+        token = f"_{carto}"
+        index = name.find(token)
         if index == -1:
             return name
 
-        prefix = name[: index - 1]
-        suffix = name[index:]
-        return f"{prefix}|{suffix}"
+        prefix = name[:index]
+        return f"{prefix}|{carto}"
 
     @staticmethod
     def result_file_name(folder_name: str) -> str:
@@ -35,6 +38,7 @@ class Backtester(BaseRunner):
     def get_mkt_data_qmls_for_path(self, folder_path: str, *, carto: str) -> dict[str, str]:
         data = self.qml_handler.load_qmls(folder_path)
         market_data_qmls: dict[str, str] = {}
+        folder_carto = basename(folder_path)
 
         for name, value in data.items():
             if value["data_type"] in self.request_set_tags:
@@ -43,6 +47,8 @@ class Backtester(BaseRunner):
                 continue
 
             adjusted_name = self.adjust_file_name(name=name, carto=carto)
+            if adjusted_name == name and folder_carto != carto:
+                adjusted_name = self.adjust_file_name(name=name, carto=folder_carto)
             market_data_qmls[adjusted_name] = value["raw_data"]
 
         if not market_data_qmls:

@@ -15,6 +15,9 @@ class QmlInputService:
     @staticmethod
     def adjust_file_name(file_name: str, qml_type: str) -> str:
         if qml_type not in ["fixing", "productDefinition", "stress", "results"]:
+            if file_name.upper().endswith("_BASE"):
+                return f"{file_name[:-5]}|BASE"
+
             parts = file_name.rsplit("-", 1)
             if len(parts) > 1:
                 if parts[1] == "COLLAT":

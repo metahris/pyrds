@@ -20,6 +20,22 @@ def test_get_market_data_qmls_excludes_request_instructionset_results_and_stress
     assert "<model>" in market_data["MODEL_304_48_172_SNE"]
 
 
+def test_market_data_base_suffix_is_uploaded_with_pipe_base_key(working_dir, logger) -> None:
+    from pathlib import Path
+
+    Path(working_dir.data, "ycsetup_BASE.xml").write_text("<ycsetup />", encoding="utf-8")
+    service = QmlInputService(
+        qml_handler=QmlHandler(logger=logger),
+        files_path=working_dir,
+        logger=logger,
+    )
+
+    market_data = service.get_market_data_qmls(request_set_tags=REQUEST_SET_TAGS)
+
+    assert "ycsetup|BASE" in market_data
+    assert "ycsetup_BASE" not in market_data
+
+
 def test_get_trade_qmls_selects_product_and_pricing_params(working_dir, logger) -> None:
     service = QmlInputService(
         qml_handler=QmlHandler(logger=logger),

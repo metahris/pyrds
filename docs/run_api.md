@@ -1,6 +1,6 @@
 # Running the API
 
-Run the API:
+## Swagger
 
 ```bash
 fastapi dev pyrds/api/run.py
@@ -12,7 +12,79 @@ If you are already inside `pyrds/api`, use:
 fastapi dev run.py
 ```
 
-For IDE breakpoints, run:
+Swagger is available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## Debugging In PyCharm
+
+### 1. Open File
+
+Open:
+
+```text
+pyrds/api/run.py
+```
+
+### 2. Create Debug Configuration
+
+In the top-right corner:
+
+Click the dropdown, then `Edit Configurations...`.
+
+Click `+`, then select `Python`.
+
+Fill:
+
+```text
+Name: Pyrds API Debug
+Script path: <project_root>/pyrds/api/run.py
+Parameters: --debug
+Working directory: <project_root>
+Interpreter: your venv
+```
+
+Click `Apply`, then `OK`.
+
+### 3. Add Breakpoint
+
+Click in the left gutter of any file to add a red breakpoint dot.
+
+### 4. Start Debugging
+
+Select `Pyrds API Debug`.
+
+Click `Debug`, not `Run`.
+
+### 5. Trigger Breakpoint
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Call an endpoint. The breakpoint should be hit.
+
+## Critical Rules
+
+- Always use PyCharm `Debug`.
+- Never use the terminal for debugging.
+- Never use `../run.py`.
+- Never use `--reload` for breakpoint debugging.
+
+If a breakpoint does not hit, enable:
+
+```text
+Settings -> Build, Execution, Deployment -> Debugger
+Attach to subprocess automatically
+```
+
+## Command Line Debug
+
+Only use this outside PyCharm:
 
 ```bash
 python pyrds/api/run.py --debug
@@ -29,12 +101,6 @@ Use another port:
 
 ```bash
 python pyrds/api/run.py --debug --port 8001
-```
-
-Swagger is available at:
-
-```text
-http://127.0.0.1:<port>/docs
 ```
 
 If the port is already used:

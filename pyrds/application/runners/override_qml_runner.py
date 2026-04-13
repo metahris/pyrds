@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from pathlib import Path
 from os.path import join
 from typing import Any
 
@@ -10,7 +11,7 @@ from pyrds.application.runners.base_runner import BaseRunner
 from pyrds.application.services.log_context import log_info
 from pyrds.application.services.qml_override_service import QmlOverrideService
 from pyrds.domain.exceptions import DumpError, OverrideApplicationError, ValidationError
-from pyrds.domain.override_models import OverridePlan, OverrideScenario, OverrideTargetType
+from pyrds.domain.override_models import OverrideOperation, OverridePlan, OverrideScenario, OverrideTargetType
 from pyrds.domain.ps_request import PsRequest
 
 
@@ -121,16 +122,23 @@ class OverrideQmlRunner(BaseRunner):
         use_cache_factory: Any,
         dump: bool,
     ) -> dict[str, Any]:
-        market_data_set_id = base_market_data_set_id
+        market_data_set_id: str | list[str] = base_market_data_set_id
         trade_set_id = base_trade_set_id
         request_set_id: str | None = None
 
-        if self._has_target_type(scenario, OverrideTargetType.MARKETDATA):
+        if self._has_market_data_transform_overrides(scenario):
             market_data_set_id = await self._clone_and_override_remote_market_data_set(
                 base_set_id=base_market_data_set_id,
                 scenario=scenario,
                 qml_runner=qml_runner,
             )
+
+        added_market_data_set_id = self._create_and_fill_added_market_data_set(
+            scenario=scenario,
+            qml_runner=qml_runner,
+        )
+        if added_market_data_set_id:
+            market_data_set_id = [added_market_data_set_id, market_data_set_id] if isinstance(market_data_set_id, str) else [added_market_data_set_id, *market_data_set_id]
 
         if self._has_target_type(scenario, OverrideTargetType.PRODUCT) or self._has_target_type(
             scenario,
@@ -188,6 +196,7 @@ class OverrideQmlRunner(BaseRunner):
             scenario=scenario,
             target_type=OverrideTargetType.MARKETDATA,
         )
+        market_data_qmls.update(self._resolve_added_market_data_qmls(scenario=scenario))
         self.add_market_data_qml(
             set_id=set_ids["market_data_set_id"],
             mkt_data=market_data_qmls,
@@ -280,6 +289,74 @@ class OverrideQmlRunner(BaseRunner):
             )
 
         return new_set_id
+
+    def _create_and_fill_added_market_data_set(
+        self,
+        *,
+        scenario: OverrideScenario,
+        qml_runner: str,
+    ) -> str | None:
+        added_qmls = self._resolve_added_market_data_qmls(scenario=scenario)
+        if not added_qmls:
+            return None
+
+        params = {"qmlRunner": qml_runner}
+        set_id = self.market_api.create_set(params=params)
+        log_info(
+            self.logger,
+            "Created additional market data set for override scenario",
+            scenario_id=scenario.scenario_id,
+            set_id=set_id,
+            keys=list(added_qmls.keys()),
+        )
+        self.add_market_data_qml(
+            set_id=set_id,
+            mkt_data=added_qmls,
+            params=params,
+        )
+        return set_id
+
+    def _resolve_added_market_data_qmls(self, *, scenario: OverrideScenario) -> dict[str, str]:
+        added: dict[str, str] = {}
+        for override in scenario.overrides:
+            if override.target_type != OverrideTargetType.MARKETDATA:
+                continue
+            if override.operation == OverrideOperation.ADD_FILE:
+                key, qml = self._resolve_added_market_data_item(override=override)
+                added[key] = qml
+            elif override.operation == OverrideOperation.ADD_FILES:
+                for key, qml in self._resolve_added_market_data_items(override=override):
+                    added[key] = qml
+        return added
+
+    def _resolve_added_market_data_item(self, *, override: Any) -> tuple[str, str]:
+        qml = self.override_service.resolve_source_text(override.source, OverrideTargetType.MARKETDATA)
+        key = override.target_id or self._derive_market_data_key_from_source(override.source, qml)
+        return self.require_non_empty_str(key, f"override '{override.name}' market data key"), qml
+
+    def _resolve_added_market_data_items(self, *, override: Any) -> list[tuple[str, str]]:
+        items: list[tuple[str, str]] = []
+        if override.target_sources:
+            for target_source in override.target_sources:
+                qml = self.override_service.resolve_source_text(target_source.source, OverrideTargetType.MARKETDATA)
+                items.append((str(target_source.target_id), qml))
+            return items
+
+        for source in override.sources or []:
+            qml = self.override_service.resolve_source_text(source, OverrideTargetType.MARKETDATA)
+            items.append((self._derive_market_data_key_from_source(source, qml), qml))
+        return items
+
+    def _derive_market_data_key_from_source(self, source: Any, qml: str) -> str:
+        file_name = getattr(source, "file_name", None)
+        file_path = getattr(source, "file_path", None)
+        source_name = file_name or file_path
+        if not source_name:
+            raise OverrideApplicationError("target_id is required when adding inline market data XML.")
+
+        stem = Path(str(source_name)).stem
+        qml_type = self.qml_handler.get_root_tag(qml)
+        return self.adjust_file_name(stem, qml_type)
 
     async def _clone_and_override_remote_trade_set(
         self,
@@ -401,6 +478,14 @@ class OverrideQmlRunner(BaseRunner):
     @staticmethod
     def _has_target_type(scenario: OverrideScenario, target_type: OverrideTargetType) -> bool:
         return any(item.target_type == target_type for item in scenario.overrides)
+
+    @staticmethod
+    def _has_market_data_transform_overrides(scenario: OverrideScenario) -> bool:
+        return any(
+            item.target_type == OverrideTargetType.MARKETDATA
+            and item.operation not in {OverrideOperation.ADD_FILE, OverrideOperation.ADD_FILES}
+            for item in scenario.overrides
+        )
 
     def _apply_remote_trade_overrides(
         self,

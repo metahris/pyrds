@@ -23,6 +23,7 @@ Each example includes the full request shape expected by the override endpoints.
 Files:
 
 - `marketdata_replace_file.json`
+- `ot_replace_pricingparams_add_marketdata.json`
 - `marketdata_apply_to_all_replace_block.json`
 - `product_set_xpath_text.json`
 - `pricingparams_replace_file_all_trades.json`
@@ -89,6 +90,46 @@ Replace the `<parameters>` block:
     "inline_xml": "<parameters><meanReversion>0.02</meanReversion></parameters>"
   }
 }
+```
+
+### Market Data: Add Extra Files In OT Mode
+
+In OT override mode, use `add_file` or `add_files` when the base OT response already contains a market data set and you need to add extra local market data beside it.
+
+Pyrds creates a new market data set for the added files and sends both set ids to pricing:
+
+```text
+marketDataSetIds = [added_local_market_data_set_id, base_or_overridden_ot_market_data_set_id]
+```
+
+Example:
+
+```json
+{
+  "name": "add_extra_market_data",
+  "target_type": "marketdata",
+  "operation": "add_files",
+  "target_sources": [
+    {
+      "target_id": "static_data|BASE",
+      "source": {
+        "file_path": "inputs/data/static_data.xml"
+      }
+    },
+    {
+      "target_id": "YCSETUP|BASE",
+      "source": {
+        "file_path": "inputs/data/ycsetup_BASE.xml"
+      }
+    }
+  ]
+}
+```
+
+If `target_id` is omitted for file-based sources, Pyrds derives it from the file name. For example:
+
+```text
+ycsetup_BASE.xml -> ycsetup|BASE
 ```
 
 ### Product
@@ -258,7 +299,7 @@ Input instructionset:
 <instructionset>
   <instructions>
     <item type="PRICE">
-      <valdate>2024/03/25</valdate>
+      <valdate>2024/06/26</valdate>
       <mktdataenv>BASE</mktdataenv>
     </item>
   </instructions>

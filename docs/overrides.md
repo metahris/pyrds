@@ -20,6 +20,7 @@ POST /overrides/full-qml
 Use overrides when a user wants to test changes such as:
 
 - Replace an entire market data QML file.
+- Add extra market data QML files beside the OT market data set.
 - Replace one XML block inside a market data, product, pricing params, request, or instructionset QML.
 - Replace several XML blocks in the same QML.
 - Replace a node selected by XPath.
@@ -44,6 +45,7 @@ Concept:
 - Run the base OT request first.
 - Extract the existing remote market data and trade set ids.
 - Clone only the remote sets that need changes.
+- Create an additional market data set when the scenario adds local market data files.
 - Apply overrides to cloned QML content.
 - Recompute each override scenario.
 - Keep a `base_request` result for comparison.
@@ -265,6 +267,102 @@ instructionset -> inputs/data
 
 ## Operations
 
+### add_file
+
+Add one market data QML file to a scenario.
+
+This operation is only supported for `target_type=marketdata`.
+
+In OT override mode, Pyrds creates a new market data set, adds the local QML to it, and sends both market data sets to pricing:
+
+```text
+marketDataSetIds = [added_local_market_data_set_id, base_or_overridden_ot_market_data_set_id]
+```
+
+Use this when the callback needs market data that is not already present in the OT market data set.
+
+Example:
+
+```json
+{
+  "name": "add_static_data",
+  "target_type": "marketdata",
+  "operation": "add_file",
+  "target_id": "static_data|BASE",
+  "source": {
+    "file_path": "inputs/data/static_data.xml"
+  }
+}
+```
+
+Validation:
+
+- `source` is required.
+- `target_type` must be `marketdata`.
+- `target_id` is recommended because it is the market data key sent to the remote set.
+- If `target_id` is omitted, it can only be derived for file-based sources.
+- Inline XML requires `target_id`.
+
+### add_files
+
+Add several market data QML files to a scenario.
+
+This operation is only supported for `target_type=marketdata`.
+
+Use `target_sources` when you want to explicitly control each market data key:
+
+```json
+{
+  "name": "add_extra_market_data",
+  "target_type": "marketdata",
+  "operation": "add_files",
+  "target_sources": [
+    {
+      "target_id": "static_data|BASE",
+      "source": {
+        "file_path": "inputs/data/static_data.xml"
+      }
+    },
+    {
+      "target_id": "YCSETUP|BASE",
+      "source": {
+        "file_path": "inputs/data/ycsetup_BASE.xml"
+      }
+    }
+  ]
+}
+```
+
+Use `sources` when keys can be derived from file names:
+
+```json
+{
+  "name": "add_extra_market_data",
+  "target_type": "marketdata",
+  "operation": "add_files",
+  "sources": [
+    {
+      "file_name": "ycsetup_BASE.xml"
+    },
+    {
+      "file_name": "static_data.xml"
+    }
+  ]
+}
+```
+
+Example key derivation:
+
+```text
+ycsetup_BASE.xml -> ycsetup|BASE
+```
+
+Validation:
+
+- `sources` or `target_sources` is required.
+- `target_type` must be `marketdata`.
+- Inline XML should use `target_sources` so the market data key is explicit.
+
 ### replace_file
 
 Replace the entire QML file/content with another XML document.
@@ -408,7 +506,7 @@ Example:
   "target_type": "instructionset",
   "operation": "set_xpath_text",
   "xpath": "./instructions/item[@type='PRICE']/valdate",
-  "value": "2024/03/25",
+  "value": "2024/06/26",
   "match_policy": "exactly_one"
 }
 ```
@@ -542,6 +640,18 @@ Example file:
 
 ```text
 examples/api_payloads/overrides/marketdata_apply_to_all_replace_block.json
+```
+
+### Scenario 2a: Add Extra Market Data Beside OT Market Data
+
+Use `marketdata + add_file` or `marketdata + add_files`.
+
+This does not mutate the OT market data set. Pyrds creates an additional market data set and adds it before the OT/cloned set in `marketDataSetIds`.
+
+Example file:
+
+```text
+examples/api_payloads/overrides/ot_replace_pricingparams_add_marketdata.json
 ```
 
 ### Scenario 3: Change Product Value By XPath

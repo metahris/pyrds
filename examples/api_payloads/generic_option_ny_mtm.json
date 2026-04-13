@@ -7,13 +7,13 @@
         "OT:70882"
       ]
     },
-    "valuationDate": "2023/12/28 23:59:59",
+    "valuationDate": "2024/06/26 23:59:59",
     "gridPricerTechnicalDetails": {
       "cartography": "OPTION_NYK",
       "analyseName": "MCR_MTM",
       "directQmlRunnerCall": true,
-      "qmlRunner": "QMLRPREGPRC",
-      "foCluster": "OTRPL11",
+      "qmlRunner": "QMLRPREGRPC",
+      "foCluster": "OTRPLI1",
       "qlibVersion": "GMDPRS_PS_LATEST",
       "psOutputType": "RAW",
       "outputCurrency": "USD",

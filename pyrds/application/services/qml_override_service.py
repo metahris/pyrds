@@ -32,6 +32,9 @@ class QmlOverrideService:
         applicable = [item for item in scenario.overrides if item.target_type == target_type]
 
         for override in applicable:
+            if override.operation in {OverrideOperation.ADD_FILE, OverrideOperation.ADD_FILES}:
+                continue
+
             if override.target_sources:
                 for target_source in override.target_sources:
                     target_id = target_source.target_id

@@ -18,6 +18,8 @@ class OverrideTargetType(StrEnum):
 
 
 class OverrideOperation(StrEnum):
+    ADD_FILE = "add_file"
+    ADD_FILES = "add_files"
     REPLACE_FILE = "replace_file"
     REPLACE_BLOCK = "replace_block"
     REPLACE_BLOCKS = "replace_blocks"
@@ -88,7 +90,7 @@ class QmlOverride(CustomBaseModel):
             OverrideTargetType.MARKETDATA,
             OverrideTargetType.PRODUCT,
             OverrideTargetType.PRICINGPARAMS,
-        }
+        } and self.operation not in {OverrideOperation.ADD_FILE, OverrideOperation.ADD_FILES}
         if (
             not self.apply_to_all
             and not self.target_id
@@ -108,19 +110,30 @@ class QmlOverride(CustomBaseModel):
             if not self.target_sources:
                 raise OverrideValidationError(f"Override '{self.name}' target_sources cannot be empty.")
             if self.operation not in {
+                OverrideOperation.ADD_FILES,
                 OverrideOperation.REPLACE_FILE,
                 OverrideOperation.REPLACE_BLOCK,
                 OverrideOperation.REPLACE_XPATH,
             }:
                 raise OverrideValidationError(
                     f"Override '{self.name}' target_sources is only supported for "
-                    "replace_file, replace_block, and replace_xpath."
+                    "add_files, replace_file, replace_block, and replace_xpath."
                 )
             target_ids = [item.target_id for item in self.target_sources]
             if len(target_ids) != len(set(target_ids)):
                 raise OverrideValidationError(f"Override '{self.name}' target_sources contains duplicate target ids.")
 
-        if self.operation in {OverrideOperation.REPLACE_FILE, OverrideOperation.REPLACE_BLOCK}:
+        if self.operation == OverrideOperation.ADD_FILE:
+            if self.target_type != OverrideTargetType.MARKETDATA:
+                raise OverrideValidationError(f"Override '{self.name}' add_file is only supported for marketdata.")
+            if self.source is None:
+                raise OverrideValidationError(f"Override '{self.name}' requires source.")
+        elif self.operation == OverrideOperation.ADD_FILES:
+            if self.target_type != OverrideTargetType.MARKETDATA:
+                raise OverrideValidationError(f"Override '{self.name}' add_files is only supported for marketdata.")
+            if not self.sources and not self.target_sources:
+                raise OverrideValidationError(f"Override '{self.name}' requires sources or target_sources.")
+        elif self.operation in {OverrideOperation.REPLACE_FILE, OverrideOperation.REPLACE_BLOCK}:
             if self.source is None and self.target_sources is None:
                 raise OverrideValidationError(f"Override '{self.name}' requires source.")
         elif self.operation == OverrideOperation.REPLACE_BLOCKS:

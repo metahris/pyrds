@@ -10,10 +10,13 @@ from pyrds.application.services.qml_input_service import QmlInputService
 from pyrds.application.services.qml_update_service import QmlUpdateService
 from pyrds.application.services.response_parser import ResponseParser
 from pyrds.domain.exceptions import (
+    APIError,
     BatchRequestError,
     PricingComputationError,
+    RequestTimeoutError,
     ResultParsingError,
     SetCreationError,
+    TransportError,
     ValidationError,
 )
 from pyrds.domain.ps_request import PsRequest, UseCache
@@ -106,8 +109,10 @@ class BaseRunner:
     def _compute(self, body: dict[str, Any]) -> dict[str, Any]:
         try:
             response = self.ps_api.price(body=clear_null_values(body))
+        except (APIError, RequestTimeoutError, TransportError):
+            raise
         except Exception as exc:
-            raise PricingComputationError("Synchronous pricing failed.") from exc
+            raise PricingComputationError(f"Synchronous pricing failed: {exc}") from exc
 
         if not isinstance(response, dict):
             raise PricingComputationError("Pricing response must be a dict.")
@@ -127,8 +132,10 @@ class BaseRunner:
                 priceable=normalized,
                 fail_on_any_error=fail_on_any_error,
             )
+        except (APIError, RequestTimeoutError, TransportError, BatchRequestError):
+            raise
         except Exception as exc:
-            raise PricingComputationError("Asynchronous pricing failed.") from exc
+            raise PricingComputationError(f"Asynchronous pricing failed: {exc}") from exc
 
     def create_full_qml_sets(self, *, qml_runner: str) -> dict[str, str]:
         qml_runner = self.require_non_empty_str(qml_runner, "qml_runner")

@@ -50,16 +50,37 @@ def test_domain_errors_use_consistent_shape(settings, monkeypatch) -> None:
 
 def test_result_file_not_found_returns_404(settings, monkeypatch) -> None:
     monkeypatch.setattr("pyrds.api.main.get_client", lambda: DummyClient())
+    from pyrds.api.working_dir import create_working_dir
+
+    create_working_dir(settings=settings, name="existing")
     app.dependency_overrides[get_settings] = lambda: settings
     app.dependency_overrides[get_client] = lambda: DummyClient()
     try:
         with TestClient(app) as client:
             response = client.post(
                 "/results/parse/price",
-                json={"dir": "missing", "file_name": "not_found.xml"},
+                json={"dir": "existing", "file_name": "not_found.xml"},
             )
     finally:
         app.dependency_overrides.clear()
 
     assert response.status_code == 404
     assert response.json()["type"] == "qml_input_not_found"
+
+
+def test_missing_working_dir_returns_404(settings, monkeypatch) -> None:
+    monkeypatch.setattr("pyrds.api.main.get_client", lambda: DummyClient())
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_client] = lambda: DummyClient()
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/results/parse/price",
+                json={"dir": "missing", "file_name": "result.xml"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 404
+    assert response.json()["type"] == "qml_input_not_found"
+    assert "Create it first with POST /working-dir" in response.json()["detail"]

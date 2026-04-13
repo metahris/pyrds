@@ -2,21 +2,35 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pyrds.domain.exceptions import ConfigError, ValidationError
+from pyrds.domain.exceptions import ConfigError, QmlInputNotFoundError, ValidationError
 from pyrds.infrastructure.config.settings import FilesPath, Settings
 
 
 def resolve_working_dir(settings: Settings, name: str) -> FilesPath:
     root = _configured_root(settings)
     safe_name = _safe_dir_name(name)
+    working_dir = root / safe_name
+    if not working_dir.exists():
+        raise QmlInputNotFoundError(
+            f"Working directory does not exist: {working_dir}. "
+            "Create it first with POST /working-dir."
+        )
+    if not working_dir.is_dir():
+        raise QmlInputNotFoundError(f"Working directory path is not a directory: {working_dir}.")
+
     return FilesPath(
-        working_dir=str(root / safe_name),
+        working_dir=str(working_dir),
         xml_updater_path=settings.pyrds_api.xml_updater_path or None,
     )
 
 
 def create_working_dir(settings: Settings, name: str) -> tuple[FilesPath, list[str]]:
-    files_path = resolve_working_dir(settings=settings, name=name)
+    root = _configured_root(settings)
+    safe_name = _safe_dir_name(name)
+    files_path = FilesPath(
+        working_dir=str(root / safe_name),
+        xml_updater_path=settings.pyrds_api.xml_updater_path or None,
+    )
     paths = [
         files_path.working_dir,
         files_path.inputs,

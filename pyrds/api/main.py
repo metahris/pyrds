@@ -29,6 +29,7 @@ from pyrds.domain.exceptions import (
     DumpError,
     OverrideApplicationError,
     OverrideValidationError,
+    PricingComputationError,
     QmlInputNotFoundError,
     QmlVerificationError,
     RequestTimeoutError,
@@ -192,6 +193,12 @@ async def handle_qml_verification_error(_, exc: QmlVerificationError) -> JSONRes
 async def handle_dump_error(_, exc: DumpError) -> JSONResponse:
     log_api_event("API dump error", error=str(exc))
     return error_response(status_code=500, error_type="dump_error", detail=str(exc))
+
+
+@app.exception_handler(PricingComputationError)
+async def handle_pricing_computation_error(_, exc: PricingComputationError) -> JSONResponse:
+    log_api_event("API pricing computation error", error=str(exc))
+    return error_response(status_code=502, error_type="pricing_computation_error", detail=str(exc))
 
 
 @app.exception_handler(OverrideValidationError)

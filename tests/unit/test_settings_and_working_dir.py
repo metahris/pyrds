@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from pyrds.api.working_dir import create_working_dir, resolve_working_dir
-from pyrds.domain.exceptions import ValidationError
+from pyrds.domain.exceptions import QmlInputNotFoundError, ValidationError
 from pyrds.infrastructure.config.settings import Settings
 
 
@@ -31,3 +31,8 @@ def test_create_working_dir_creates_expected_layout(settings: Settings) -> None:
 def test_resolve_working_dir_rejects_unsafe_name(settings: Settings) -> None:
     with pytest.raises(ValidationError):
         resolve_working_dir(settings=settings, name="../outside")
+
+
+def test_resolve_working_dir_requires_existing_directory(settings: Settings) -> None:
+    with pytest.raises(QmlInputNotFoundError, match="Create it first with POST /working-dir"):
+        resolve_working_dir(settings=settings, name="missing")

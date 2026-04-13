@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from pyrds.application.services.log_context import log_info
 from pyrds.domain.exceptions import QmlVerificationError, ResultParsingError, SerializationError
 from pyrds.domain.stress_models import (
     StressAffineDeformation,
@@ -60,6 +61,7 @@ class QmlHandler:
             self.dump_qml(dump_path=str(output_path / f"{safe_name}.xml"), data=value)
 
     def verify_request_qml(self, *, request_qml: str) -> str:
+        log_info(self.logger, "Verifying request QML")
         root = self._parse_xml(request_qml)
         if self._local_name(root.tag) != "request":
             raise QmlVerificationError("Request QML root must be 'request'.")
@@ -95,10 +97,18 @@ class QmlHandler:
             warning="distribute tag of the gridConfiguration must be true",
         )
 
-        return self.clean_qml(ET.tostring(root, encoding="unicode"))
+        result = self.clean_qml(ET.tostring(root, encoding="unicode"))
+        log_info(
+            self.logger,
+            "Request QML verified",
+            request_type=root.get("type"),
+        )
+        return result
 
     def verify_instruction_set_qml(self, *, instruction_set_qml: str, ps_request: Any | None = None) -> None:
+        log_info(self.logger, "Verifying instruction set QML")
         if not instruction_set_qml:
+            log_info(self.logger, "Instruction set QML is empty")
             return
         root = self._parse_xml(instruction_set_qml)
         if self._local_name(root.tag) != "instructionset":
@@ -106,10 +116,13 @@ class QmlHandler:
 
         instructions = root.find("instructions")
         if instructions is None:
+            log_info(self.logger, "Instruction set QML verified", instruction_count=0)
             return
 
         expected_date = self._extract_ps_request_date(ps_request) if ps_request is not None else None
+        instruction_count = 0
         for index, item in enumerate(instructions.findall("item"), start=1):
+            instruction_count += 1
             if expected_date is not None:
                 self._verify_instruction_date(
                     item=item,
@@ -130,6 +143,13 @@ class QmlHandler:
                     "mktdataenv in instructionset must be BASE "
                     f"for item {index}, got {market_data_env}."
                 )
+
+        log_info(
+            self.logger,
+            "Instruction set QML verified",
+            instruction_count=instruction_count,
+            expected_date=str(expected_date) if expected_date is not None else None,
+        )
 
     def get_root_tag(self, qml: str) -> str:
         return self._local_name(self._parse_xml(qml).tag)

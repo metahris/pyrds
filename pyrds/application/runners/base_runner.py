@@ -176,6 +176,12 @@ class BaseRunner:
         if market_data_id is not None or market_data_qml is not None:
             market_data_id = self.require_non_empty_str(market_data_id, "market_data_id")
             market_data_qml = self.require_non_empty_str(market_data_qml, "market_data_qml")
+            log_info(
+                self.logger,
+                "Adding market data QML to set",
+                set_id=set_id,
+                market_data_id=market_data_id,
+            )
             self.market_api.add_qml(
                 set_id=set_id,
                 market_data_id=market_data_id,
@@ -189,6 +195,12 @@ class BaseRunner:
             return
 
         for market_data_id, market_data_qml in mkt_data.items():
+            log_info(
+                self.logger,
+                "Adding market data QML to set",
+                set_id=set_id,
+                market_data_id=str(market_data_id),
+            )
             self.market_api.add_qml(
                 set_id=set_id,
                 market_data_id=str(market_data_id),
@@ -208,6 +220,12 @@ class BaseRunner:
         set_id = self.require_non_empty_str(set_id, "set_id")
         trade_id = self.require_non_empty_str(trade_id, "trade_id")
 
+        log_info(
+            self.logger,
+            "Adding trade QML to set",
+            set_id=set_id,
+            trade_id=trade_id,
+        )
         self.trades_api.add_qml(
             set_id=set_id,
             trade_id=trade_id,
@@ -227,6 +245,12 @@ class BaseRunner:
         set_id = self.require_non_empty_str(set_id, "set_id")
         qml_runner = self.require_non_empty_str(qml_runner, "qml_runner")
 
+        log_info(
+            self.logger,
+            "Adding request QML to set",
+            set_id=set_id,
+            qml_runner=qml_runner,
+        )
         self.ps_api.add_qml(
             set_id=set_id,
             instruction_set_qml=instruction_set_qml,

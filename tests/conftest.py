@@ -176,6 +176,9 @@ class SpyLogger:
     def debug(self, *args: Any, **kwargs: Any) -> None:
         self.messages.append(("debug", args, kwargs))
 
+    def contains(self, text: str) -> bool:
+        return any(text in str(args) for _, args, _ in self.messages)
+
 
 @pytest.fixture
 def logger() -> SpyLogger:

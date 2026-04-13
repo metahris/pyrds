@@ -96,6 +96,7 @@ class QmlInputService:
 
         if verify:
             try:
+                log_info(self.logger, "Verifying selected instruction set QML")
                 self.qml_handler.verify_instruction_set_qml(
                     instruction_set_qml=instruction_set_qml,
                     ps_request=ps_request,
@@ -120,6 +121,7 @@ class QmlInputService:
         log_info(self.logger, "Request qml selected", key=request_key)
 
         try:
+            log_info(self.logger, "Verifying selected request QML", key=request_key)
             return self.qml_handler.verify_request_qml(request_qml=qmls[request_key])
         except Exception as exc:
             raise QmlVerificationError("Request qml verification failed.") from exc

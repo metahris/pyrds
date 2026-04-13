@@ -36,6 +36,8 @@ def test_verify_request_qml_normalizes_container_placeholders(logger) -> None:
     assert "<instructionset>!{INSTRUCTIONSET}</instructionset>" in verified
     assert "<pricingparam>!{PRICINGPARAM}</pricingparam>" in verified
     assert "<distribute>true</distribute>" in verified
+    assert logger.contains("Verifying request QML")
+    assert logger.contains("Request QML verified")
 
 
 def test_verify_instruction_set_qml_accepts_matching_request_date(logger, ps_request) -> None:
@@ -45,6 +47,8 @@ def test_verify_instruction_set_qml_accepts_matching_request_date(logger, ps_req
         instruction_set_qml=INSTRUCTION_SET_QML,
         ps_request=ps_request,
     )
+    assert logger.contains("Verifying instruction set QML")
+    assert logger.contains("Instruction set QML verified")
 
 
 def test_verify_instruction_set_qml_rejects_wrong_market_data_env(logger, ps_request) -> None:

@@ -1,0 +1,47 @@
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2024/03/25 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": -2
+  },
+  "stress": {
+    "stress_name": "BERM_STRESS",
+    "deformations": {
+      "rates": {
+        "name": "RateLevel",
+        "mult": {
+          "type": "iter",
+          "start": -5,
+          "delta": 0.1,
+          "nbr_points": 101
+        },
+        "add": {
+          "type": "scalar",
+          "value": 0
+        }
+      },
+      "vol": {
+        "name": "SigmaShock",
+        "mult": {
+          "type": "vector",
+          "values": [-5, 0, 10]
+        },
+        "add": {
+          "type": "scalar",
+          "value": 0
+        }
+      }
+    }
+  }
+}

@@ -30,7 +30,3 @@ def load_api_metadata() -> dict[str, Any]:
 
 def load_api_tags() -> list[dict[str, Any]]:
     return load_static_json("tags.json", [])
-
-
-def load_api_examples() -> dict[str, Any]:
-    return load_static_json("examples.json", {})

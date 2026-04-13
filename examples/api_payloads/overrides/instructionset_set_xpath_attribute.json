@@ -1,0 +1,39 @@
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2023/12/28 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  },
+  "override_plan": {
+    "scenarios": [
+      {
+        "scenario_id": "instructionset_change_type_attribute",
+        "description": "Change the type attribute on an instruction item.",
+        "overrides": [
+          {
+            "name": "change_price_type_to_backprice",
+            "target_type": "instructionset",
+            "operation": "set_xpath_attribute",
+            "xpath": "./instructions/item[@type='PRICE']",
+            "attribute": "type",
+            "value": "BACKPRICE",
+            "match_policy": "exactly_one"
+          }
+        ]
+      }
+    ]
+  },
+  "dump": true,
+  "dump_excel": true
+}

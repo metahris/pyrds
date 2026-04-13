@@ -1,6 +1,0 @@
-<MarketData>
-  <Name>EUR-CURVE</Name>
-  <Curve>EUR</Curve>
-  <Point tenor="1Y">0.031</Point>
-  <Point tenor="5Y">0.034</Point>
-</MarketData>

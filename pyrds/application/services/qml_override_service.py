@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from os.path import isabs, join
-from typing import Any, Iterable
-from xml.etree import ElementTree as ET
+from typing import Any
+
+from lxml import etree
 
 from pyrds.domain.exceptions import OverrideApplicationError, OverrideValidationError
 from pyrds.domain.override_models import (
@@ -31,7 +32,26 @@ class QmlOverrideService:
         applicable = [item for item in scenario.overrides if item.target_type == target_type]
 
         for override in applicable:
-            target_ids = list(output.keys()) if override.apply_to_all else [self._require_target_id(override)]
+            if override.target_sources:
+                for target_source in override.target_sources:
+                    target_id = target_source.target_id
+                    if target_id not in output:
+                        raise OverrideApplicationError(
+                            f"Target '{target_id}' does not exist for override '{override.name}'."
+                        )
+                    target_override = override.model_copy(
+                        update={
+                            "target_id": target_id,
+                            "target_ids": None,
+                            "target_sources": None,
+                            "apply_to_all": False,
+                            "source": target_source.source,
+                        }
+                    )
+                    output[target_id] = self.apply_override(qml=output[target_id], override=target_override)
+                continue
+
+            target_ids = self._resolve_target_ids(override=override, available_target_ids=list(output.keys()))
             for target_id in target_ids:
                 if target_id not in output:
                     raise OverrideApplicationError(
@@ -91,6 +111,15 @@ class QmlOverrideService:
                 match_policy=override.match_policy,
             )
 
+        if override.operation == OverrideOperation.SET_XPATH_ATTRIBUTE:
+            return self.set_xpath_attribute(
+                qml=qml,
+                xpath=self._require_xpath(override),
+                attribute=self._require_attribute(override),
+                value=self._require_value(override),
+                match_policy=override.match_policy,
+            )
+
         raise OverrideApplicationError(f"Unsupported override operation: {override.operation}")
 
     def replace_file(self, *, qml: str, replacement_qml: str) -> str:
@@ -101,9 +130,9 @@ class QmlOverrideService:
     def replace_block(self, *, qml: str, block_xml: str) -> str:
         root = self._parse_xml(qml)
         new_block = self._parse_xml(block_xml)
-        replaced = self._replace_first_matching_tag(root=root, tag=new_block.tag, replacement=new_block)
+        replaced = self._replace_first_matching_tag(root=root, tag=self._local_name(new_block), replacement=new_block)
         if not replaced:
-            raise OverrideApplicationError(f"Could not find block tag '{new_block.tag}' to replace.")
+            raise OverrideApplicationError(f"Could not find block tag '{self._local_name(new_block)}' to replace.")
         return self._to_xml_string(root)
 
     def replace_blocks(
@@ -117,7 +146,7 @@ class QmlOverrideService:
             raise OverrideValidationError("replace_blocks requires at least one block.")
 
         if not allow_duplicate_tags:
-            tags = [self._parse_xml(block_xml).tag for block_xml in blocks_xml]
+            tags = [self._local_name(self._parse_xml(block_xml)) for block_xml in blocks_xml]
             if len(tags) != len(set(tags)):
                 raise OverrideValidationError("replace_blocks contains duplicate block tags.")
 
@@ -139,12 +168,15 @@ class QmlOverrideService:
         matches = self._findall(root, xpath)
         self._validate_xpath_matches(xpath=xpath, matches=matches, match_policy=match_policy)
 
-        parents = self._find_parents_of_matches(root, matches)
-        if len(parents) != len(matches):
-            raise OverrideApplicationError(f"Failed to resolve parents for xpath '{xpath}'.")
-
-        for match, parent in zip(matches, parents):
-            self._replace_child(parent, match, self._clone_element(replacement))
+        for match in matches:
+            if not isinstance(match, etree._Element):
+                raise OverrideApplicationError(
+                    f"XPath '{xpath}' must match XML elements for replace_xpath."
+                )
+            parent = match.getparent()
+            if parent is None:
+                raise OverrideApplicationError("replace_xpath cannot replace the XML document root.")
+            parent.replace(match, self._clone_element(replacement))
         return self._to_xml_string(root)
 
     def set_xpath_text(
@@ -160,7 +192,33 @@ class QmlOverrideService:
         self._validate_xpath_matches(xpath=xpath, matches=matches, match_policy=match_policy)
 
         for node in matches:
+            if not isinstance(node, etree._Element):
+                raise OverrideApplicationError(
+                    "set_xpath_text only supports XML element matches. "
+                    "Use set_xpath_attribute to change attributes."
+                )
             node.text = value
+        return self._to_xml_string(root)
+
+    def set_xpath_attribute(
+        self,
+        *,
+        qml: str,
+        xpath: str,
+        attribute: str,
+        value: str,
+        match_policy: MatchPolicy = MatchPolicy.EXACTLY_ONE,
+    ) -> str:
+        root = self._parse_xml(qml)
+        matches = self._findall(root, xpath)
+        self._validate_xpath_matches(xpath=xpath, matches=matches, match_policy=match_policy)
+
+        for node in matches:
+            if not isinstance(node, etree._Element):
+                raise OverrideApplicationError(
+                    f"XPath '{xpath}' must match XML elements for set_xpath_attribute."
+                )
+            node.set(attribute, value)
         return self._to_xml_string(root)
 
     def resolve_source_text(self, source: QmlSource | None, target_type: OverrideTargetType) -> str:
@@ -195,59 +253,41 @@ class QmlOverrideService:
             return file_handle.read()
 
     @staticmethod
-    def _parse_xml(xml_text: str) -> ET.Element:
+    def _parse_xml(xml_text: str) -> etree._Element:
         try:
-            return ET.fromstring(xml_text)
+            parser = etree.XMLParser(remove_blank_text=False, recover=False)
+            return etree.fromstring(xml_text.encode("utf-8"), parser=parser)
         except Exception as exc:
             raise OverrideApplicationError("Invalid XML content.") from exc
 
     @staticmethod
-    def _to_xml_string(root: ET.Element) -> str:
-        return ET.tostring(root, encoding="utf-8").decode("utf-8")
+    def _to_xml_string(root: etree._Element) -> str:
+        return etree.tostring(root, encoding="unicode")
 
     @staticmethod
-    def _clone_element(element: ET.Element) -> ET.Element:
-        return ET.fromstring(ET.tostring(element, encoding="utf-8"))
+    def _clone_element(element: etree._Element) -> etree._Element:
+        return etree.fromstring(etree.tostring(element, encoding="utf-8"))
 
-    @staticmethod
-    def _replace_child(parent: ET.Element, old_child: ET.Element, new_child: ET.Element) -> None:
-        children = list(parent)
-        for index, child in enumerate(children):
-            if child is old_child:
-                parent[index] = new_child
-                return
-        raise OverrideApplicationError("Could not replace child element.")
-
-    def _replace_first_matching_tag(self, *, root: ET.Element, tag: str, replacement: ET.Element) -> bool:
+    def _replace_first_matching_tag(self, *, root: etree._Element, tag: str, replacement: etree._Element) -> bool:
         for parent in root.iter():
             for child in list(parent):
-                if child.tag == tag:
-                    self._replace_child(parent, child, self._clone_element(replacement))
+                if self._local_name(child) == tag:
+                    parent.replace(child, self._clone_element(replacement))
                     return True
         return False
 
     @staticmethod
-    def _findall(root: ET.Element, xpath: str) -> list[ET.Element]:
+    def _findall(root: etree._Element, xpath: str) -> list[Any]:
         try:
-            return list(root.findall(xpath))
+            return list(root.xpath(xpath))
         except Exception as exc:
             raise OverrideApplicationError(f"Invalid xpath '{xpath}'.") from exc
-
-    @staticmethod
-    def _find_parents_of_matches(root: ET.Element, matches: Iterable[ET.Element]) -> list[ET.Element]:
-        match_ids = {id(node) for node in matches}
-        parents: list[ET.Element] = []
-        for parent in root.iter():
-            for child in list(parent):
-                if id(child) in match_ids:
-                    parents.append(parent)
-        return parents
 
     @staticmethod
     def _validate_xpath_matches(
         *,
         xpath: str,
-        matches: list[ET.Element],
+        matches: list[Any],
         match_policy: MatchPolicy,
     ) -> None:
         if match_policy == MatchPolicy.EXACTLY_ONE and len(matches) != 1:
@@ -263,6 +303,14 @@ class QmlOverrideService:
             raise OverrideValidationError(f"Override '{override.name}' requires target_id.")
         return override.target_id
 
+    @classmethod
+    def _resolve_target_ids(cls, *, override: QmlOverride, available_target_ids: list[str]) -> list[str]:
+        if override.apply_to_all:
+            return available_target_ids
+        if override.target_ids:
+            return override.target_ids
+        return [cls._require_target_id(override)]
+
     @staticmethod
     def _require_xpath(override: QmlOverride) -> str:
         if not override.xpath:
@@ -274,3 +322,13 @@ class QmlOverrideService:
         if override.value is None:
             raise OverrideValidationError(f"Override '{override.name}' requires value.")
         return override.value
+
+    @staticmethod
+    def _require_attribute(override: QmlOverride) -> str:
+        if not override.attribute:
+            raise OverrideValidationError(f"Override '{override.name}' requires attribute.")
+        return override.attribute
+
+    @staticmethod
+    def _local_name(element: etree._Element) -> str:
+        return etree.QName(element).localname

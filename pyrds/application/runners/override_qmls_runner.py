@@ -261,9 +261,12 @@ class OverrideQmlsRunner(BaseRunner):
     def override_instructionset(self, *, qml: str, value: dict[str, Any]) -> str:
         if value.get("xpath"):
             return self.qml_handler.override_in_xpath(qml=qml, overrides=[value["xpath"]])
+        block = value.get("block") or value.get("value")
+        if not block:
+            return qml
         return self.qml_handler.update_block_in_qml(
             data_id="instructionset",
-            block=value,
+            block=block,
             qml=qml,
         )
 

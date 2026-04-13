@@ -414,10 +414,31 @@ class OverrideQmlRunner(BaseRunner):
                 continue
 
             field_name = "product" if override.target_type == OverrideTargetType.PRODUCT else "pricingparams"
-            target_ids = (
-                list(output.keys())
-                if override.apply_to_all
-                else [self.require_non_empty_str(override.target_id, "override.target_id")]
+            if override.target_sources:
+                for target_source in override.target_sources:
+                    target_id = str(target_source.target_id)
+                    if target_id not in output:
+                        raise OverrideApplicationError(
+                            f"Trade '{target_id}' does not exist for override '{override.name}'."
+                        )
+                    target_override = override.model_copy(
+                        update={
+                            "target_id": target_id,
+                            "target_ids": None,
+                            "target_sources": None,
+                            "apply_to_all": False,
+                            "source": target_source.source,
+                        }
+                    )
+                    output[target_id][field_name] = self.override_service.apply_override(
+                        qml=output[target_id][field_name],
+                        override=target_override,
+                    )
+                continue
+
+            target_ids = self._resolve_trade_override_target_ids(
+                override=override,
+                available_trade_ids=list(output.keys()),
             )
 
             for target_id in target_ids:
@@ -439,3 +460,17 @@ class OverrideQmlRunner(BaseRunner):
         scenario: OverrideScenario,
     ) -> dict[str, dict[str, str]]:
         return self._apply_remote_trade_overrides(trade_qmls=trade_qmls, scenario=scenario)
+
+    def _resolve_trade_override_target_ids(
+        self,
+        *,
+        override: Any,
+        available_trade_ids: list[str],
+    ) -> list[str]:
+        if override.apply_to_all:
+            return available_trade_ids
+        if override.target_sources:
+            return [str(item.target_id) for item in override.target_sources]
+        if override.target_ids:
+            return [str(target_id) for target_id in override.target_ids]
+        return [self.require_non_empty_str(override.target_id, "override.target_id")]

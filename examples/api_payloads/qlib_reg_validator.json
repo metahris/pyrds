@@ -1,0 +1,26 @@
+{
+  "dir": "working_dir",
+  "ref_version": "GMDPRS_108881",
+  "new_version": "GMDPRS_108881",
+  "ps_request": {
+    "tradeSpecs": {
+      "spec": "ID",
+      "ids": [
+        "OT:28405306"
+      ]
+    },
+    "valuationDate": "2024/09/19 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  },
+  "dump_xl": true
+}

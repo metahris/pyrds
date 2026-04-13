@@ -26,7 +26,16 @@ from pyrds.domain.ps_request import (
     UseResult,
     Values,
 )
-from pyrds.domain.stress_models import StressField, StressRequest
+from pyrds.domain.stress_models import (
+    Stress,
+    StressAffineDeformation,
+    StressAffineDeformations,
+    StressFactors,
+    StressField,
+    StressRequest,
+    build_stress_request,
+)
+from pyrds.domain.override_models import TargetQmlSource
 
 __all__ = [
     "CompositScenarios",
@@ -52,11 +61,17 @@ __all__ = [
     "PsStressScenariosDeformations",
     "RiskFactorPartition",
     "RiskFactorTimeSeries",
+    "Stress",
+    "StressAffineDeformation",
+    "StressAffineDeformations",
+    "StressFactors",
     "StressVarConfig",
     "StressField",
     "StressRequest",
+    "TargetQmlSource",
     "UseCache",
     "UseCash",
     "UseResult",
     "Values",
+    "build_stress_request",
 ]

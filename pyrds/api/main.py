@@ -10,16 +10,29 @@ from pydantic import ValidationError as PydanticValidationError
 from fastapi.responses import JSONResponse
 
 from pyrds.api.dependencies import get_client
+from pyrds.api.routes.backtest import router as backtest_router
+from pyrds.api.routes.computing import router as computing_router
 from pyrds.api.routes.health import router as health_router
-from pyrds.api.routes.pricing import router as pricing_router
+from pyrds.api.routes.overrides import router as overrides_router
+from pyrds.api.routes.qlib import router as qlib_router
+from pyrds.api.routes.results import router as results_router
+from pyrds.api.routes.stress import router as stress_router
+from pyrds.api.routes.working_dir import router as working_dir_router
 from pyrds.api.static_loader import load_api_metadata, load_api_tags
 from pyrds.domain.exceptions import (
     APIError,
     AuthError,
     BatchRequestError,
     ConfigError,
+    DumpError,
+    OverrideApplicationError,
+    OverrideValidationError,
+    QmlInputNotFoundError,
+    QmlVerificationError,
     RequestTimeoutError,
+    ResultParsingError,
     SDKError,
+    SerializationError,
     TransportError,
     ValidationError,
 )
@@ -41,7 +54,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.include_router(health_router)
-app.include_router(pricing_router)
+app.include_router(working_dir_router)
+app.include_router(computing_router)
+app.include_router(backtest_router)
+app.include_router(stress_router)
+app.include_router(qlib_router)
+app.include_router(overrides_router)
+app.include_router(results_router)
 
 
 def error_response(
@@ -103,6 +122,41 @@ async def handle_auth_error(_, exc: AuthError) -> JSONResponse:
 @app.exception_handler(ValidationError)
 async def handle_validation_error(_, exc: ValidationError) -> JSONResponse:
     return error_response(status_code=400, error_type="validation_error", detail=str(exc))
+
+
+@app.exception_handler(SerializationError)
+async def handle_serialization_error(_, exc: SerializationError) -> JSONResponse:
+    return error_response(status_code=400, error_type="serialization_error", detail=str(exc))
+
+
+@app.exception_handler(ResultParsingError)
+async def handle_result_parsing_error(_, exc: ResultParsingError) -> JSONResponse:
+    return error_response(status_code=400, error_type="result_parsing_error", detail=str(exc))
+
+
+@app.exception_handler(QmlInputNotFoundError)
+async def handle_qml_input_not_found_error(_, exc: QmlInputNotFoundError) -> JSONResponse:
+    return error_response(status_code=404, error_type="qml_input_not_found", detail=str(exc))
+
+
+@app.exception_handler(QmlVerificationError)
+async def handle_qml_verification_error(_, exc: QmlVerificationError) -> JSONResponse:
+    return error_response(status_code=400, error_type="qml_verification_error", detail=str(exc))
+
+
+@app.exception_handler(DumpError)
+async def handle_dump_error(_, exc: DumpError) -> JSONResponse:
+    return error_response(status_code=500, error_type="dump_error", detail=str(exc))
+
+
+@app.exception_handler(OverrideValidationError)
+async def handle_override_validation_error(_, exc: OverrideValidationError) -> JSONResponse:
+    return error_response(status_code=400, error_type="override_validation_error", detail=str(exc))
+
+
+@app.exception_handler(OverrideApplicationError)
+async def handle_override_application_error(_, exc: OverrideApplicationError) -> JSONResponse:
+    return error_response(status_code=400, error_type="override_application_error", detail=str(exc))
 
 
 @app.exception_handler(APIError)

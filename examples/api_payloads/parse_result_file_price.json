@@ -1,0 +1,6 @@
+{
+  "dir": "working_dir",
+  "file_name": "result.xml",
+  "dump_excel": true,
+  "excel_file_name": "price_result.xlsx"
+}

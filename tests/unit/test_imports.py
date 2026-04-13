@@ -3,5 +3,5 @@ from pyrds.sdk.client import PyrdsClient
 
 
 def test_app_imports() -> None:
-    assert app.title == "pyrds API"
+    assert app.title == "Pyrds"
     assert PyrdsClient is not None

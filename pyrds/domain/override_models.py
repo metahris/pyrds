@@ -23,6 +23,7 @@ class OverrideOperation(StrEnum):
     REPLACE_BLOCKS = "replace_blocks"
     REPLACE_XPATH = "replace_xpath"
     SET_XPATH_TEXT = "set_xpath_text"
+    SET_XPATH_ATTRIBUTE = "set_xpath_attribute"
 
 
 class MatchPolicy(StrEnum):
@@ -47,15 +48,23 @@ class QmlSource(CustomBaseModel):
         return self
 
 
+class TargetQmlSource(CustomBaseModel):
+    target_id: str
+    source: QmlSource
+
+
 class QmlOverride(CustomBaseModel):
     name: str
     target_type: OverrideTargetType
     operation: OverrideOperation
     target_id: str | None = None
+    target_ids: list[str] | None = None
+    target_sources: list[TargetQmlSource] | None = None
     apply_to_all: bool = False
     source: QmlSource | None = None
     sources: list[QmlSource] | None = None
     xpath: str | None = None
+    attribute: str | None = None
     value: str | None = None
     match_policy: MatchPolicy = MatchPolicy.EXACTLY_ONE
     allow_duplicate_tags: bool = False
@@ -63,28 +72,64 @@ class QmlOverride(CustomBaseModel):
 
     @model_validator(mode="after")
     def validate_override(self) -> "QmlOverride":
-        if self.apply_to_all and self.target_id:
+        target_selectors = [
+            bool(self.target_id),
+            bool(self.target_ids),
+            bool(self.target_sources),
+            self.apply_to_all,
+        ]
+        if sum(1 for selected in target_selectors if selected) > 1:
             raise OverrideValidationError(
-                f"Override '{self.name}' cannot set both apply_to_all=True and target_id."
+                f"Override '{self.name}' must set only one of target_id, target_ids, "
+                "target_sources, apply_to_all."
             )
 
-        if not self.apply_to_all and not self.target_id and self.target_type in {
+        requires_target_selector = self.target_type in {
             OverrideTargetType.MARKETDATA,
             OverrideTargetType.PRODUCT,
             OverrideTargetType.PRICINGPARAMS,
-        }:
+        }
+        if (
+            not self.apply_to_all
+            and not self.target_id
+            and not self.target_ids
+            and not self.target_sources
+            and requires_target_selector
+        ):
             raise OverrideValidationError(
-                f"Override '{self.name}' requires target_id or apply_to_all=True."
+                f"Override '{self.name}' requires target_id, target_ids, target_sources, "
+                "or apply_to_all=True."
             )
 
+        if self.target_ids is not None and not self.target_ids:
+            raise OverrideValidationError(f"Override '{self.name}' target_ids cannot be empty.")
+
+        if self.target_sources is not None:
+            if not self.target_sources:
+                raise OverrideValidationError(f"Override '{self.name}' target_sources cannot be empty.")
+            if self.operation not in {
+                OverrideOperation.REPLACE_FILE,
+                OverrideOperation.REPLACE_BLOCK,
+                OverrideOperation.REPLACE_XPATH,
+            }:
+                raise OverrideValidationError(
+                    f"Override '{self.name}' target_sources is only supported for "
+                    "replace_file, replace_block, and replace_xpath."
+                )
+            target_ids = [item.target_id for item in self.target_sources]
+            if len(target_ids) != len(set(target_ids)):
+                raise OverrideValidationError(f"Override '{self.name}' target_sources contains duplicate target ids.")
+
         if self.operation in {OverrideOperation.REPLACE_FILE, OverrideOperation.REPLACE_BLOCK}:
-            if self.source is None:
+            if self.source is None and self.target_sources is None:
                 raise OverrideValidationError(f"Override '{self.name}' requires source.")
         elif self.operation == OverrideOperation.REPLACE_BLOCKS:
             if not self.sources:
                 raise OverrideValidationError(f"Override '{self.name}' requires sources.")
         elif self.operation == OverrideOperation.REPLACE_XPATH:
-            if self.source is None or not self.xpath:
+            if self.source is None and self.target_sources is None:
+                raise OverrideValidationError(f"Override '{self.name}' requires source.")
+            if not self.xpath:
                 raise OverrideValidationError(
                     f"Override '{self.name}' requires source and xpath."
                 )
@@ -92,6 +137,11 @@ class QmlOverride(CustomBaseModel):
             if self.value is None or not self.xpath:
                 raise OverrideValidationError(
                     f"Override '{self.name}' requires value and xpath."
+                )
+        elif self.operation == OverrideOperation.SET_XPATH_ATTRIBUTE:
+            if self.value is None or not self.xpath or not self.attribute:
+                raise OverrideValidationError(
+                    f"Override '{self.name}' requires value, xpath, and attribute."
                 )
 
         return self

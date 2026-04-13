@@ -4,7 +4,31 @@
     "description": "API health and readiness checks."
   },
   {
-    "name": "Pricing",
-    "description": "Pricing workflow endpoints."
+    "name": "Working Dir",
+    "description": "Create Pyrds working directories under the configured pyrds root."
+  },
+  {
+    "name": "Computing",
+    "description": "Compute pricing workflows using direct payloads or QML files from a Pyrds working directory."
+  },
+  {
+    "name": "Backtest",
+    "description": "Run full-QML backtests from scenario folders in a Pyrds working directory."
+  },
+  {
+    "name": "Stress",
+    "description": "Run stress pricing workflows using compact stress definitions and QML request mutation."
+  },
+  {
+    "name": "Qlib",
+    "description": "Run Qlib version regression validation and optional Excel comparison dumps."
+  },
+  {
+    "name": "Overrides",
+    "description": "Run structured QML override scenarios for OT and full-QML pricing."
+  },
+  {
+    "name": "Results",
+    "description": "Parse large pricing result XML files into JSON and optional Excel outputs."
   }
 ]

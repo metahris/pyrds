@@ -1,0 +1,85 @@
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2023/12/28 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  },
+  "override_plan": {
+    "scenarios": [
+      {
+        "scenario_id": "base_curve_shift",
+        "description": "Change a market data curve value.",
+        "overrides": [
+          {
+            "name": "set_curve_quote",
+            "target_type": "marketdata",
+            "operation": "set_xpath_text",
+            "target_id": "EUR|BASE",
+            "xpath": ".//quotes/item[@name='10Y']/value",
+            "value": "0.025",
+            "match_policy": "exactly_one"
+          }
+        ]
+      },
+      {
+        "scenario_id": "product_and_pricingparams_change",
+        "description": "Change product and pricing params in the same scenario.",
+        "overrides": [
+          {
+            "name": "set_product_notional",
+            "target_type": "product",
+            "operation": "set_xpath_text",
+            "target_id": "TRADE_001",
+            "xpath": ".//notional/val",
+            "value": "10000000",
+            "match_policy": "exactly_one"
+          },
+          {
+            "name": "replace_pricing_model",
+            "target_type": "pricingparams",
+            "operation": "replace_block",
+            "target_id": "TRADE_001",
+            "source": {
+              "inline_xml": "<model><name>MODEL_B</name></model>"
+            }
+          }
+        ]
+      },
+      {
+        "scenario_id": "request_and_instructionset_change",
+        "description": "Change request and instructionset together.",
+        "overrides": [
+          {
+            "name": "set_request_distribute",
+            "target_type": "request",
+            "operation": "set_xpath_text",
+            "xpath": "./gridConfiguration/distribute",
+            "value": "true",
+            "match_policy": "exactly_one"
+          },
+          {
+            "name": "set_instruction_env",
+            "target_type": "instructionset",
+            "operation": "set_xpath_text",
+            "xpath": "./instructions/item/mktdataenv",
+            "value": "BASE",
+            "match_policy": "one_or_more"
+          }
+        ]
+      }
+    ]
+  },
+  "dump": true,
+  "dump_excel": true
+}

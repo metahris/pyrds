@@ -1,0 +1,39 @@
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2023/12/28 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  },
+  "override_plan": {
+    "scenarios": [
+      {
+        "scenario_id": "replace_curve_block_all_marketdata",
+        "description": "Apply the same block replacement to every market data QML in the scenario.",
+        "overrides": [
+          {
+            "name": "replace_curve_block_everywhere",
+            "target_type": "marketdata",
+            "operation": "replace_block",
+            "apply_to_all": true,
+            "source": {
+              "inline_xml": "<curve><name>OVERRIDDEN_CURVE</name><enabled>true</enabled></curve>"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "dump": true,
+  "dump_excel": true
+}

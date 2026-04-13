@@ -1,0 +1,3 @@
+{
+  "inline_xml": "<results><instruction name=\"PRICE\"><output><item name=\"total\"><price>123.45</price><currency>USD</currency></item></output></instruction></results>"
+}

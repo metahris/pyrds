@@ -1,0 +1,55 @@
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2023/12/28 23:59:59",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGPRC",
+      "foCluster": "OTRPL11",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  },
+  "override_plan": {
+    "scenarios": [
+      {
+        "scenario_id": "replace_pricingparams_per_trade",
+        "description": "For each trade/product in the trade set, replace its pricing params with its matching new pricing params file.",
+        "overrides": [
+          {
+            "name": "replace_each_trade_pricingparams",
+            "target_type": "pricingparams",
+            "operation": "replace_file",
+            "target_sources": [
+              {
+                "target_id": "P1",
+                "source": {
+                  "file_name": "ppm_bis1.xml"
+                }
+              },
+              {
+                "target_id": "P12",
+                "source": {
+                  "file_name": "ppm_bis2.xml"
+                }
+              },
+              {
+                "target_id": "P25",
+                "source": {
+                  "file_name": "ppm_bis3.xml"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "dump": true,
+  "dump_excel": true
+}

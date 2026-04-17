@@ -103,7 +103,15 @@ inputs/trade/
 └── price-28405308-pricingparam.xml
 ```
 
-Pyrds ignores non-XML files like `cache.txt`. It also excludes request, instructionset, result, and stress XMLs from market data upload.
+Pyrds ignores non-QML files like `cache.txt`. It also excludes request, instructionset, and result QMLs from market data upload.
+
+Stress QML files are uploaded to the market data set using the file name as the key:
+
+```text
+BERM_STRESS.xml -> BERM_STRESS
+```
+
+For stress endpoints, the payload `stress_name` must match this key.
 
 Market data file names ending in `_BASE.xml` are uploaded with pipe keys:
 

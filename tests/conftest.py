@@ -270,7 +270,10 @@ def working_dir(tmp_path: Path) -> FilesPath:
     (root / "inputs" / "data" / "price-28405308-instructionset.xml").write_text(INSTRUCTION_SET_QML, encoding="utf-8")
     (root / "inputs" / "data" / "price-28405308-executeresult.xml").write_text(PRICE_RESULT_QML, encoding="utf-8")
     (root / "inputs" / "data" / "static_data.xml").write_text("<staticData><enabled>true</enabled></staticData>", encoding="utf-8")
-    (root / "inputs" / "data" / "stress.xml").write_text("<stress><name>S</name></stress>", encoding="utf-8")
+    (root / "inputs" / "data" / "BERM_STRESS.xml").write_text(
+        "<stress><name>BERM_STRESS</name></stress>",
+        encoding="utf-8",
+    )
     (root / "inputs" / "data" / "cache.txt").write_text("ignored", encoding="utf-8")
     (root / "inputs" / "trade" / "price-28405308-product.xml").write_text(PRODUCT_QML, encoding="utf-8")
     (root / "inputs" / "trade" / "price-28405308-pricingparam.xml").write_text(

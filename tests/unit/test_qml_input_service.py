@@ -7,7 +7,7 @@ from pyrds.application.services.qml_input_service import QmlInputService
 REQUEST_SET_TAGS = {"request", "instructionset"}
 
 
-def test_get_market_data_qmls_excludes_request_instructionset_results_and_stress(working_dir, logger) -> None:
+def test_get_market_data_qmls_excludes_request_instructionset_and_results_but_uploads_stress(working_dir, logger) -> None:
     service = QmlInputService(
         qml_handler=QmlHandler(logger=logger),
         files_path=working_dir,
@@ -24,9 +24,11 @@ def test_get_market_data_qmls_excludes_request_instructionset_results_and_stress
         "VOL_IR_USD|BASE",
         "VOLIRSETUP|BASE",
         "YCSETUP|BASE",
+        "BERM_STRESS",
         "static_data",
     }
     assert "<model" in market_data["MODEL_304_48_172|BASE"]
+    assert "<stress>" in market_data["BERM_STRESS"]
 
 
 def test_market_data_base_suffix_is_uploaded_with_pipe_base_key(working_dir, logger) -> None:

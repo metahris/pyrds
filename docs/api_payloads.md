@@ -93,7 +93,7 @@ POST /results/parse/vegair
 POST /results/parse/calibration
 ```
 
-Result parsing accepts either raw XML:
+Result parsing accepts either raw QML:
 
 ```json
 {
@@ -120,6 +120,12 @@ stress_request = build_stress_request(payload["stress"])
 ```
 
 The resulting `StressRequest` contains one scenario per mult/add combination and is injected into the request QML as `shiftScenariosWithMultAdd`.
+
+The matching `<stress>` QML file must also be present in `inputs/data`. The file stem is uploaded as the market data key, so `stress_name: "BERM_STRESS"` requires:
+
+```text
+inputs/data/BERM_STRESS.xml -> BERM_STRESS
+```
 
 Detailed stress payload rules are documented in `docs/stress_payloads.md`.
 

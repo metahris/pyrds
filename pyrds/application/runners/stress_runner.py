@@ -37,7 +37,7 @@ class StressRunner(BaseRunner):
             data_type = value["data_type"]
             if data_type in self.request_set_tags:
                 continue
-            if data_type in {"stress", "results"}:
+            if data_type == "results":
                 continue
             adjusted_key = self.adjust_file_name(key, data_type)
             market_data_qmls[adjusted_key] = value["raw_data"]

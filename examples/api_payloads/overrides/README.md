@@ -1,6 +1,6 @@
 # Override Payloads
 
-Overrides let you run one base request with controlled QML changes. Each scenario is independent, so you can compare prices across several changes without editing XML files by hand.
+Overrides let you run one base request with controlled QML changes. Each scenario is independent, so you can compare prices across several changes without editing QML files by hand.
 
 Use these endpoints:
 
@@ -32,7 +32,7 @@ Keys:
 | `dir` | Working directory name under `pyrds_api.pyrds_dir`. |
 | `ps_request` | Normal Pyrds pricing request. |
 | `override_plan` | The scenario plan to run. |
-| `dump` | Write raw XML result files under `results/`. |
+| `dump` | Write raw QML result files under `results/`. |
 | `dump_excel` | Write a summary Excel under `results/`. |
 
 ## Plan Shape
@@ -89,10 +89,10 @@ Keys:
 | `operation` | What kind of change to apply. |
 | `target_id` | One target key or trade id. Use only one target selector. |
 | `target_ids` | Several targets receiving the same change. Use only one target selector. |
-| `target_sources` | Several targets, each with its own source XML. Use only one target selector. |
+| `target_sources` | Several targets, each with its own source QML. Use only one target selector. |
 | `apply_to_all` | Apply the change to every available target. Use only one target selector. |
-| `source` | Replacement XML source for one target or all targets. |
-| `sources` | Several replacement XML sources, used by `replace_blocks` or `add_files`. |
+| `source` | Replacement QML source for one target or all targets. |
+| `sources` | Several replacement QML sources, used by `replace_blocks` or `add_files`. |
 | `xpath` | XPath used by XPath operations. |
 | `value` | New text value for `set_xpath_text` or attribute value for `set_xpath_attribute`. |
 | `attribute` | Attribute name for `set_xpath_attribute`. |
@@ -156,16 +156,16 @@ For `marketdata`, `product`, and `pricingparams`, pick exactly one selector.
 | --- | --- |
 | `target_id` | One target gets one change. |
 | `target_ids` | Several targets get the same change. |
-| `target_sources` | Each target gets a different source XML. |
+| `target_sources` | Each target gets a different source QML. |
 | `apply_to_all` | Every available target gets the same change. |
 
 For `request` and `instructionset`, omit target selectors because there is only one selected QML.
 
-## Source XML
+## Source QML
 
-Operations that replace XML need `source` or `sources`.
+Operations that replace QML need `source` or `sources`.
 
-Use inline XML:
+Use inline QML:
 
 ```json
 {
@@ -214,11 +214,11 @@ Each source must set exactly one of `inline_xml`, `file_name`, or `file_path`.
 | `add_file` | Add one local market data QML file. | `marketdata` |
 | `add_files` | Add several local market data QML files. | `marketdata` |
 | `replace_file` | Replace the whole QML document. | Any target |
-| `replace_block` | Replace the first XML child block with the same tag as the source XML root. | Any target |
+| `replace_block` | Replace the first QML child block with the same tag as the source QML root. | Any target |
 | `replace_blocks` | Replace several blocks in one QML. | Any target |
-| `replace_xpath` | Replace XML nodes selected by XPath. | Any target |
-| `set_xpath_text` | Set text on XML nodes selected by XPath. | Any target |
-| `set_xpath_attribute` | Set one attribute on XML nodes selected by XPath. | Any target |
+| `replace_xpath` | Replace QML nodes selected by XPath. | Any target |
+| `set_xpath_text` | Set text on QML nodes selected by XPath. | Any target |
+| `set_xpath_attribute` | Set one attribute on QML nodes selected by XPath. | Any target |
 
 ## XPath Match Policy
 
@@ -389,15 +389,15 @@ Use this when an OT scenario needs local QML files added beside the base OT mark
 | `marketdata_replace_file.json` | Replace one market data file. |
 | `marketdata_apply_to_all_replace_block.json` | Replace one block in one market data file. |
 | `ot_replace_pricingparams_add_marketdata.json` | Replace pricing params and add local market data in OT mode. |
-| `product_set_xpath_text.json` | Change product XML text with XPath. |
+| `product_set_xpath_text.json` | Change product QML text with XPath. |
 | `pricingparams_replace_file_all_trades.json` | Replace pricing params for all non-empty trades. |
 | `pricingparams_replace_file_selected_trades.json` | Replace pricing params for selected trades. |
 | `pricingparams_replace_file_per_trade.json` | Replace pricing params per trade using `target_sources`. |
 | `pricingparams_replace_blocks.json` | Replace several blocks in pricing params. |
-| `request_set_xpath_text.json` | Change request XML text. |
-| `instructionset_set_xpath_text.json` | Change instructionset XML text. |
-| `instructionset_set_xpath_attribute.json` | Change instructionset XML attribute. |
-| `replace_xpath_node.json` | Replace an XML node selected by XPath. |
+| `request_set_xpath_text.json` | Change request QML text. |
+| `instructionset_set_xpath_text.json` | Change instructionset QML text. |
+| `instructionset_set_xpath_attribute.json` | Change instructionset QML attribute. |
+| `replace_xpath_node.json` | Replace a QML node selected by XPath. |
 | `multi_scenario_override_plan.json` | Run several independent scenarios. |
 
 For the full contract and more validation details, see:

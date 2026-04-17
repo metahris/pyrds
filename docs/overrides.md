@@ -1,6 +1,6 @@
 # QML Overrides
 
-Overrides let users modify QML inputs in a controlled, reproducible way before pricing. Instead of editing XML files manually or adding ad hoc runner logic, users define an `override_plan` containing one or more scenarios. Each scenario runs independently and produces its own pricing result.
+Overrides let users modify QML inputs in a controlled, reproducible way before pricing. Instead of editing QML files manually or adding ad hoc runner logic, users define an `override_plan` containing one or more scenarios. Each scenario runs independently and produces its own pricing result.
 
 Override examples live under:
 
@@ -21,8 +21,8 @@ Use overrides when a user wants to test changes such as:
 
 - Replace an entire market data QML file.
 - Add extra market data QML files beside the OT market data set.
-- Replace one XML block inside a market data, product, pricing params, request, or instructionset QML.
-- Replace several XML blocks in the same QML.
+- Replace one QML block inside a market data, product, pricing params, request, or instructionset QML.
+- Replace several QML blocks in the same QML.
 - Replace a node selected by XPath.
 - Set text on one or more XPath-selected nodes.
 - Set attributes on one or more XPath-selected nodes.
@@ -96,7 +96,7 @@ Override APIs use this shape in Swagger:
 
 `override_plan` defines scenarios and operations.
 
-`dump` writes raw scenario result XML files.
+`dump` writes raw scenario result QML files.
 
 `dump_excel` writes a summary Excel file.
 
@@ -221,7 +221,7 @@ For `request` and `instructionset`, omit `target_id`.
 
 ## Source Types
 
-Operations that need replacement XML use `source` or `sources`.
+Operations that need replacement QML use `source` or `sources`.
 
 Exactly one field is allowed in each source:
 
@@ -245,7 +245,7 @@ Exactly one field is allowed in each source:
 
 Source resolution:
 
-- `inline_xml`: uses the XML directly.
+- `inline_xml`: uses the QML directly.
 - `file_name`: resolves by target type.
 - `file_path`: relative paths resolve from the working dir; absolute paths are accepted.
 
@@ -295,7 +295,7 @@ Validation:
 - `target_type` must be `marketdata`.
 - `target_id` is recommended because it is the market data key sent to the remote set.
 - If `target_id` is omitted, it can only be derived for file-based sources.
-- Inline XML requires `target_id`.
+- Inline QML requires `target_id`.
 
 ### add_files
 
@@ -357,11 +357,11 @@ Validation:
 
 - `sources` or `target_sources` is required.
 - `target_type` must be `marketdata`.
-- Inline XML should use `target_sources` so the market data key is explicit.
+- Inline QML should use `target_sources` so the market data key is explicit.
 
 ### replace_file
 
-Replace the entire QML file/content with another XML document.
+Replace the entire QML file/content with another QML document.
 
 Use for:
 
@@ -386,13 +386,13 @@ Example:
 
 Validation:
 
-- Existing QML must be valid XML.
-- Replacement XML must be valid XML.
+- Existing QML must be valid QML.
+- Replacement QML must be valid QML.
 - `source` is required.
 
 ### replace_block
 
-Replace the first child block whose XML tag matches the source block root tag.
+Replace the first child block whose QML tag matches the source block root tag.
 
 Use for:
 
@@ -417,7 +417,7 @@ Example:
 Validation:
 
 - `source` is required.
-- The source XML root tag must exist as a child block in the target QML.
+- The source QML root tag must exist as a child block in the target QML.
 - If the tag is not found, the scenario fails.
 
 ### replace_blocks
@@ -455,7 +455,7 @@ Validation:
 
 ### replace_xpath
 
-Replace XML nodes selected by XPath with a replacement XML node.
+Replace QML nodes selected by XPath with a replacement QML node.
 
 Use for:
 
@@ -512,17 +512,17 @@ Validation:
 - `xpath` is required.
 - `value` is required.
 - XPath must match according to `match_policy`.
-- XPath must select XML elements, not attributes.
+- XPath must select QML elements, not attributes.
 
 ### set_xpath_attribute
 
-Set an attribute on XML elements selected by XPath.
+Set an attribute on QML elements selected by XPath.
 
 Use for:
 
 - Change `type="PRICE"` to another instruction type.
 - Set or update `version`.
-- Change XML metadata stored as attributes.
+- Change QML metadata stored as attributes.
 
 Example:
 
@@ -543,7 +543,7 @@ Validation:
 - `xpath` is required.
 - `attribute` is required.
 - `value` is required.
-- XPath must select XML elements.
+- XPath must select QML elements.
 - Do not use `/@type`; use the `attribute` field.
 - XPath must match according to `match_policy`.
 
@@ -590,7 +590,7 @@ Avoid this for `set_xpath_text`:
 ./instructions/item/@type
 ```
 
-That XPath selects an attribute value, not an XML element. Attribute updates should use `set_xpath_attribute`.
+That XPath selects an attribute value, not a QML element. Attribute updates should use `set_xpath_attribute`.
 
 ## Match Policies
 
@@ -694,7 +694,7 @@ and replaces every pricing params QML with one common file:
 [(price-28405308-product, price-28405308-pricingparam), ...]
 ```
 
-Trades with product QML and empty or missing pricing params are normal. In structured overrides, those trades are cloned with empty pricing params and pricingparams overrides skip them instead of failing XML parsing.
+Trades with product QML and empty or missing pricing params are normal. In structured overrides, those trades are cloned with empty pricing params and pricingparams overrides skip them instead of failing QML parsing.
 
 If the common file refers to extra pricing-param QMLs by market data key, add those files in the same override scenario:
 
@@ -808,7 +808,7 @@ Example file:
 examples/api_payloads/overrides/multi_scenario_override_plan.json
 ```
 
-### Scenario 8: Change An XML Attribute
+### Scenario 8: Change A QML Attribute
 
 Use `set_xpath_attribute`.
 
@@ -833,7 +833,7 @@ Each scenario returns:
 }
 ```
 
-With `dump=true`, raw XML result files are written to:
+With `dump=true`, raw QML result files are written to:
 
 ```text
 results/<scenario_id>_result_<timestamp>.xml
@@ -858,13 +858,13 @@ Examples:
 - XPath matches zero nodes when `match_policy=exactly_one`.
 - `set_xpath_text` is used with an attribute XPath instead of `set_xpath_attribute`.
 - Replacement block tag does not exist in the target QML.
-- Source XML is invalid.
+- Source QML is invalid.
 
 The API maps these to structured error responses through the global exception handlers.
 
 ## Design Rule
 
-Expose override workflows, not low-level XML helpers.
+Expose override workflows, not low-level QML helpers.
 
 Swagger exposes workflows:
 

@@ -38,7 +38,7 @@ class QmlInputService:
             data_type = meta["data_type"]
             if data_type in request_set_tags:
                 continue
-            if data_type in {"stress", "results"}:
+            if data_type == "results":
                 continue
 
             adjusted_name = self.adjust_file_name(file_name, data_type)

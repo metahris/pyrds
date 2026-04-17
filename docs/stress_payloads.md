@@ -9,6 +9,38 @@ POST /stress/full-qml
 POST /stress/ot
 ```
 
+## Required QML File
+
+Put the `<stress>` QML in the working directory data folder:
+
+```text
+working_dir/inputs/data/BERM_STRESS.xml
+```
+
+The file name is the market data key:
+
+```text
+BERM_STRESS.xml -> BERM_STRESS
+```
+
+The payload `stress_name` must match that key. For example, this payload:
+
+```json
+{
+  "stress": {
+    "stress_name": "BERM_STRESS"
+  }
+}
+```
+
+requires:
+
+```text
+working_dir/inputs/data/BERM_STRESS.xml
+```
+
+Pyrds uploads that `<stress>` QML to the market data set and also injects generated scenarios into the request QML with `<refKey>BERM_STRESS</refKey>`.
+
 ## Payload Shape
 
 ```json
@@ -47,7 +79,7 @@ POST /stress/ot
 }
 ```
 
-`stress_name` becomes the XML `<refKey>` value for every generated scenario.
+`stress_name` becomes the QML `<refKey>` value for every generated scenario.
 
 Each item under `deformations` is one affine deformation. The object key, such as `rates` or `vol`, is only a payload label. The real QML deformation name is `name`, for example `RateLevel` or `SigmaShock`.
 
@@ -175,9 +207,9 @@ The generated request QML contains:
 </shiftScenariosWithMultAdd>
 ```
 
-## Generated XML Item
+## Generated QML Item
 
-Each generated scenario becomes one XML item:
+Each generated scenario becomes one QML item:
 
 ```xml
 <item version="1">
@@ -210,4 +242,4 @@ Use `vector` when values are explicitly selected.
 
 Use `iter` when values are evenly spaced.
 
-Keep scenario grids reasonable. Large cartesian products create large request XML and can produce heavy pricing jobs.
+Keep scenario grids reasonable. Large cartesian products create large request QML and can produce heavy pricing jobs.

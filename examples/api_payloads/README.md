@@ -38,7 +38,7 @@ curl -X POST http://127.0.0.1:8000/overrides/full-qml \
   --data @examples/api_payloads/overrides/multi_scenario_override_plan.json
 ```
 
-Parse a result XML file already dumped under a working dir:
+Parse a result QML file already dumped under a working dir:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/results/parse/price \

@@ -31,7 +31,7 @@ def test_generic_static_fixture_loads_market_data_and_trade_qmls(logger) -> None
     pricing_params = service.get_pricing_params_qml()
 
     assert market_data
-    assert all(handler.get_root_tag(qml) not in {"request", "instructionset", "results", "stress"} for qml in market_data.values())
+    assert all(handler.get_root_tag(qml) not in {"request", "instructionset", "results"} for qml in market_data.values())
     assert product["trade_id"]
     assert product["product_qml"]
     assert pricing_params

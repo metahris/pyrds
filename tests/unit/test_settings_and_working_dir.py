@@ -24,7 +24,7 @@ def test_create_working_dir_creates_expected_layout(settings: Settings) -> None:
     assert Path(files_path.trade).is_dir()
     assert Path(files_path.results).is_dir()
     assert Path(files_path.qml_updater).is_dir()
-    assert Path(files_path.backtest).is_dir()
+    assert not (Path(files_path.working_dir) / "backtest").exists()
     assert created
 
 

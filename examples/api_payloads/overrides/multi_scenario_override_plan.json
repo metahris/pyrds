@@ -25,9 +25,9 @@
             "name": "set_curve_quote",
             "target_type": "marketdata",
             "operation": "set_xpath_text",
-            "target_id": "EUR|BASE",
-            "xpath": ".//quotes/item[@name='10Y']/value",
-            "value": "0.025",
+            "target_id": "MODEL_304_48_172|BASE",
+            "xpath": "./nstept",
+            "value": "20",
             "match_policy": "exactly_one"
           }
         ]
@@ -40,7 +40,7 @@
             "name": "set_product_notional",
             "target_type": "product",
             "operation": "set_xpath_text",
-            "target_id": "TRADE_001",
+            "target_id": "price-28405308-product",
             "xpath": ".//notional/val",
             "value": "10000000",
             "match_policy": "exactly_one"
@@ -49,7 +49,7 @@
             "name": "replace_pricing_model",
             "target_type": "pricingparams",
             "operation": "replace_block",
-            "target_id": "TRADE_001",
+            "target_id": "price-28405308-product",
             "source": {
               "inline_xml": "<model><name>MODEL_B</name></model>"
             }

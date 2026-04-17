@@ -47,11 +47,6 @@ class FilesPath(BaseModel):
             return self.xml_updater_path
         return str(Path(self.working_dir) / "qml_updater")
 
-    @computed_field
-    @property
-    def backtest(self) -> str:
-        return str(Path(self.working_dir) / "backtest")
-
 
 class AuthenticationSettings(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)

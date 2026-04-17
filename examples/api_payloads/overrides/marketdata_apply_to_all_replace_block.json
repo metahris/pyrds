@@ -18,16 +18,16 @@
   "override_plan": {
     "scenarios": [
       {
-        "scenario_id": "replace_curve_block_all_marketdata",
-        "description": "Apply the same block replacement to every market data QML in the scenario.",
+        "scenario_id": "replace_model_advanced_settings",
+        "description": "Replace a model block on MODEL_304_48_172_BASE.xml.",
         "overrides": [
           {
-            "name": "replace_curve_block_everywhere",
+            "name": "replace_model_advanced_settings",
             "target_type": "marketdata",
             "operation": "replace_block",
-            "apply_to_all": true,
+            "target_id": "MODEL_304_48_172|BASE",
             "source": {
-              "inline_xml": "<curve><name>OVERRIDDEN_CURVE</name><enabled>true</enabled></curve>"
+              "inline_xml": "<advancedSettings version=\"2\"><toleranceNotio>0.02</toleranceNotio></advancedSettings>"
             }
           }
         ]

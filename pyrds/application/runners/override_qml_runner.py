@@ -376,11 +376,18 @@ class OverrideQmlRunner(BaseRunner):
 
         trade_qmls: dict[str, dict[str, str]] = {}
         for trade_id, payload in trade_contents.items():
-            product_qml = payload.get("qml_product") or payload.get("productQml") or payload.get("product_qml")
-            pricing_qml = (
-                payload.get("qml_pricing_params")
-                or payload.get("pricingParamsQml")
-                or payload.get("pricing_params_qml")
+            product_qml = self._first_payload_value(
+                payload,
+                "qml_product",
+                "productQml",
+                "product_qml",
+            )
+            pricing_qml = self._first_payload_value(
+                payload,
+                "qml_pricing_params",
+                "pricingParamsQml",
+                "pricing_params_qml",
+                default="",
             )
 
             if not isinstance(product_qml, str):
@@ -515,6 +522,11 @@ class OverrideQmlRunner(BaseRunner):
                             "source": target_source.source,
                         }
                     )
+                    if self._is_empty_pricing_params_override(
+                        field_name=field_name,
+                        qml=output[target_id][field_name],
+                    ):
+                        continue
                     output[target_id][field_name] = self.override_service.apply_override(
                         qml=output[target_id][field_name],
                         override=target_override,
@@ -531,6 +543,11 @@ class OverrideQmlRunner(BaseRunner):
                     raise OverrideApplicationError(
                         f"Trade '{target_id}' does not exist for override '{override.name}'."
                     )
+                if self._is_empty_pricing_params_override(
+                    field_name=field_name,
+                    qml=output[target_id][field_name],
+                ):
+                    continue
                 output[target_id][field_name] = self.override_service.apply_override(
                     qml=output[target_id][field_name],
                     override=override,
@@ -559,3 +576,20 @@ class OverrideQmlRunner(BaseRunner):
         if override.target_ids:
             return [str(target_id) for target_id in override.target_ids]
         return [self.require_non_empty_str(override.target_id, "override.target_id")]
+
+    @staticmethod
+    def _first_payload_value(payload: dict[str, Any], *keys: str, default: Any = None) -> Any:
+        empty_string: str | None = None
+        for key in keys:
+            if key not in payload or payload[key] is None:
+                continue
+            value = payload[key]
+            if value == "":
+                empty_string = value
+                continue
+            return value
+        return empty_string if empty_string is not None else default
+
+    @staticmethod
+    def _is_empty_pricing_params_override(*, field_name: str, qml: str) -> bool:
+        return field_name == "pricingparams" and not qml.strip()

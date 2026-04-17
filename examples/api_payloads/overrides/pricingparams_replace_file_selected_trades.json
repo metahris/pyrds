@@ -25,9 +25,9 @@
             "name": "replace_selected_pricingparams",
             "target_type": "pricingparams",
             "operation": "replace_file",
-            "target_ids": ["TRADE_001", "TRADE_002", "TRADE_003"],
+            "target_ids": ["price-28405308-product"],
             "source": {
-              "file_name": "common_pricingparams.xml"
+              "file_name": "price-28405308-pricingparam.xml"
             }
           }
         ]

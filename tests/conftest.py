@@ -35,24 +35,70 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 REQUEST_QML = """
-<request version="5">
-  <product>product</product>
-  <instruction>PRICE</instruction>
-  <instructionset>instructionset</instructionset>
-  <pricingparam>pricingparams</pricingparam>
+<request version="3">
+  <product>!{PRODUCT}</product>
+  <instruction/>
+  <instructionset>!{INSTRUCTIONSET}</instructionset>
+  <pricingparam>!{PRICINGPARAM}</pricingparam>
+  <setups version="1">
+    <yieldcurve>YCSETUP</yieldcurve>
+    <volatility>VOLIRSETUP</volatility>
+    <credit>CCSETUP</credit>
+    <rootMktData/>
+  </setups>
+  <displayResult>true</displayResult>
   <gridConfiguration>
-    <distribute>false</distribute>
+    <depth>0</depth>
+    <maxDepth>0</maxDepth>
+    <timeLimit>0</timeLimit>
+    <minSubTasksToSerial>0</minSubTasksToSerial>
+    <distribute>true</distribute>
+    <verbose>false</verbose>
   </gridConfiguration>
+  <qlibCacheClearing>PARTIAL</qlibCacheClearing>
+  <debug>false</debug>
 </request>
 """
 
 INSTRUCTION_SET_QML = """
 <instructionset>
-  <instructions>
-    <item type="PRICE">
-      <valdate>2024/01/02</valdate>
-      <filterDateCCF>2024/01/02</filterDateCCF>
+  <name>28405308-28405306-EventLeg-SNE-2023-10-09-12-01-50</name>
+  <instructions count="2">
+    <item type="PRICE" version="8">
+      <valdate>2024/06/26</valdate>
+      <refccy alloutputs="0">USD</refccy>
+      <aggregatedccy>NONE</aggregatedccy>
+      <filterDateCCF>2024/06/26</filterDateCCF>
       <mktdataenv>BASE</mktdataenv>
+      <validateCF>false</validateCF>
+      <filterCF>NONE</filterCF>
+      <additionalprices>
+        <count>3</count>
+        <item>Underlying</item>
+        <item>Option</item>
+        <item>CreditEvent</item>
+      </additionalprices>
+      <output>
+        <count>4</count>
+        <item>PresentValue</item>
+        <item>ExerciseCost</item>
+        <item>Spot</item>
+        <item>FixFees</item>
+      </output>
+      <outputParams/>
+      <shiftscenario/>
+    </item>
+    <item type="DELTAIR" version="6">
+      <base version="9">
+        <shiftType>CUMUL_UP</shiftType>
+        <incType>CENTRED</incType>
+        <shiftValue type="STANDARD">
+          <value>2</value>
+        </shiftValue>
+        <calibrationparams>
+          <calibration>CALIBRATE</calibration>
+        </calibrationparams>
+      </base>
     </item>
   </instructions>
 </instructionset>
@@ -73,10 +119,23 @@ PRICING_PARAMS_QML = """
 """
 
 MARKET_DATA_QML = """
-<model>
-  <curve>
-    <rate>1.0</rate>
-  </curve>
+<model type="EPLGM2Bridge" version="17">
+  <numericalMethod>EDP</numericalMethod>
+  <nbTotalSimul>10000</nbTotalSimul>
+  <nbSimul>10000</nbSimul>
+  <regressionDegree>2</regressionDegree>
+  <nstept>10</nstept>
+  <advancedSettings version="2">
+    <toleranceNotio>0.01</toleranceNotio>
+  </advancedSettings>
+  <calibset>
+    <count>1</count>
+    <item>
+      <key>USD</key>
+      <val>CALIBRATOR_304_USD</val>
+    </item>
+  </calibset>
+  <domesticCurrency>USD</domesticCurrency>
 </model>
 """
 
@@ -197,10 +256,20 @@ def working_dir(tmp_path: Path) -> FilesPath:
     ):
         folder.mkdir(parents=True, exist_ok=True)
 
-    (root / "inputs" / "data" / "request.xml").write_text(REQUEST_QML, encoding="utf-8")
-    (root / "inputs" / "data" / "instructionset.xml").write_text(INSTRUCTION_SET_QML, encoding="utf-8")
-    (root / "inputs" / "data" / "MODEL_304_48_172_SNE.xml").write_text(MARKET_DATA_QML, encoding="utf-8")
-    (root / "inputs" / "data" / "result.xml").write_text(PRICE_RESULT_QML, encoding="utf-8")
+    (root / "inputs" / "data" / "120482_BASE.xml").write_text("<yieldcurve><id>120482</id></yieldcurve>", encoding="utf-8")
+    (root / "inputs" / "data" / "123778_BASE.xml").write_text("<yieldcurve><id>123778</id></yieldcurve>", encoding="utf-8")
+    (root / "inputs" / "data" / "CALIBRATOR_304_USD_BASE.xml").write_text(
+        "<calibrator type=\"ECONOMY\"><maxIter>400</maxIter></calibrator>",
+        encoding="utf-8",
+    )
+    (root / "inputs" / "data" / "MODEL_304_48_172_BASE.xml").write_text(MARKET_DATA_QML, encoding="utf-8")
+    (root / "inputs" / "data" / "VOL_IR_USD_BASE.xml").write_text("<volatility><currency>USD</currency></volatility>", encoding="utf-8")
+    (root / "inputs" / "data" / "VOLIRSETUP_BASE.xml").write_text("<volirsetup><name>VOLIRSETUP</name></volirsetup>", encoding="utf-8")
+    (root / "inputs" / "data" / "YCSETUP_BASE.xml").write_text("<ycsetup><name>YCSETUP</name></ycsetup>", encoding="utf-8")
+    (root / "inputs" / "data" / "price-28405308-request.xml").write_text(REQUEST_QML, encoding="utf-8")
+    (root / "inputs" / "data" / "price-28405308-instructionset.xml").write_text(INSTRUCTION_SET_QML, encoding="utf-8")
+    (root / "inputs" / "data" / "price-28405308-executeresult.xml").write_text(PRICE_RESULT_QML, encoding="utf-8")
+    (root / "inputs" / "data" / "static_data.xml").write_text("<staticData><enabled>true</enabled></staticData>", encoding="utf-8")
     (root / "inputs" / "data" / "stress.xml").write_text("<stress><name>S</name></stress>", encoding="utf-8")
     (root / "inputs" / "data" / "cache.txt").write_text("ignored", encoding="utf-8")
     (root / "inputs" / "trade" / "price-28405308-product.xml").write_text(PRODUCT_QML, encoding="utf-8")
@@ -240,4 +309,4 @@ def settings(tmp_path: Path) -> Settings:
 
 @pytest.fixture
 def ps_request() -> SimpleNamespace:
-    return SimpleNamespace(valuationDate="2024/01/02 23:59:59")
+    return SimpleNamespace(valuationDate="2024/06/26 23:59:59")

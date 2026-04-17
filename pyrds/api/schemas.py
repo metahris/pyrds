@@ -21,7 +21,6 @@ class WorkingDirResponse(BaseModel):
     trade: str
     results: str
     qml_updater: str
-    backtest: str
     created: list[str]
 
 

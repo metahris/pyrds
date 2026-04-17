@@ -1,5 +1,5 @@
 {
-  "pyrds_api": {
+  "pyras_api": {
     "host": "http://localhost",
     "port": 5000,
     "key": "REPLACE_ME",
@@ -26,6 +26,12 @@
   "environment": {
     "preprod": "https://example-preprod.internal",
     "dev1": "https://example-dev1.internal",
+    "dev2": "https://example-dev2.internal",
+    "int1": "https://example-int1.internal",
+    "int2": "https://example-int2.internal",
+    "int4": "https://example-int4.internal",
+    "int5": "https://example-int5.internal",
+    "prodlike": "https://example-prodlike.internal",
     "prod": "https://example-prod.internal"
   },
   "proxies": {

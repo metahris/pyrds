@@ -18,16 +18,16 @@
   "override_plan": {
     "scenarios": [
       {
-        "scenario_id": "replace_eur_base_marketdata",
+        "scenario_id": "replace_model_base_marketdata",
         "description": "Replace one market data QML by target id.",
         "overrides": [
           {
-            "name": "replace_eur_base_file",
+            "name": "replace_model_base_file",
             "target_type": "marketdata",
             "operation": "replace_file",
-            "target_id": "EUR|BASE",
+            "target_id": "MODEL_304_48_172|BASE",
             "source": {
-              "file_name": "EUR_BASE_replacement.xml"
+              "file_name": "MODEL_304_48_172_BASE.xml"
             }
           }
         ]

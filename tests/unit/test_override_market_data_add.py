@@ -12,7 +12,7 @@ from pyrds.domain.exceptions import OverrideApplicationError
 from pyrds.domain.override_models import OverrideScenario
 from pyrds.domain.ps_request import PsRequest, UseCache
 from pyrds.infrastructure.config.settings import FilesPath
-from tests.conftest import PRICE_RESULT_QML
+from tests.conftest import PRICE_RESULT_QML, PRICING_PARAMS_QML, PRODUCT_QML
 
 
 class FakeMarketApi:
@@ -44,6 +44,35 @@ class FakePricingApi:
                 }
             ]
         }
+
+
+class FakeTradesApi:
+    def __init__(self) -> None:
+        self.added: list[tuple[str, str, str, str]] = []
+
+    def create_set(self, params=None) -> str:
+        return "trade_new"
+
+    async def get_trades_in_set_async(self, *, set_id):
+        return ["trade_empty", "trade_missing", "trade_full"]
+
+    async def get_specific_trade_content_async(self, *, set_id, trade_ids, fail_on_any_error=True):
+        return {
+            "trade_empty": {
+                "productQml": PRODUCT_QML,
+                "pricingParamsQml": "",
+            },
+            "trade_missing": {
+                "productQml": PRODUCT_QML,
+            },
+            "trade_full": {
+                "productQml": PRODUCT_QML,
+                "pricingParamsQml": PRICING_PARAMS_QML,
+            },
+        }
+
+    def add_qml(self, *, set_id, trade_id, product_qml, pricing_parameters_qml, params=None) -> None:
+        self.added.append((set_id, trade_id, product_qml, pricing_parameters_qml))
 
 
 def _runner(tmp_path: Path, logger, market_api=None, ps_api=None) -> OverrideQmlRunner:
@@ -116,7 +145,7 @@ async def async_run_ot_scenario(runner: OverrideQmlRunner, scenario: OverrideSce
 
 def test_add_files_derives_market_data_key_from_base_suffix(tmp_path: Path, logger) -> None:
     runner = _runner(tmp_path, logger)
-    source_path = Path(runner.files_path.data) / "ycsetup_BASE.xml"
+    source_path = Path(runner.files_path.data) / "YCSETUP_BASE.xml"
     source_path.write_text("<ycsetup />", encoding="utf-8")
     scenario = OverrideScenario.model_validate(
         {
@@ -126,7 +155,7 @@ def test_add_files_derives_market_data_key_from_base_suffix(tmp_path: Path, logg
                     "name": "add_ycsetup",
                     "target_type": "marketdata",
                     "operation": "add_files",
-                    "sources": [{"file_name": "ycsetup_BASE.xml"}],
+                    "sources": [{"file_name": "YCSETUP_BASE.xml"}],
                 }
             ],
         }
@@ -134,7 +163,7 @@ def test_add_files_derives_market_data_key_from_base_suffix(tmp_path: Path, logg
 
     added = runner._resolve_added_market_data_qmls(scenario=scenario)
 
-    assert added == {"ycsetup|BASE": "<ycsetup />"}
+    assert added == {"YCSETUP|BASE": "<ycsetup />"}
 
 
 def test_add_inline_market_data_requires_target_id(tmp_path: Path, logger) -> None:
@@ -155,3 +184,39 @@ def test_add_inline_market_data_requires_target_id(tmp_path: Path, logger) -> No
 
     with pytest.raises(OverrideApplicationError):
         runner._resolve_added_market_data_qmls(scenario=scenario)
+
+
+def test_pricingparams_override_allows_empty_or_missing_trade_pricingparams(tmp_path: Path, logger) -> None:
+    trades_api = FakeTradesApi()
+    runner = _runner(tmp_path, logger)
+    runner.trades_api = trades_api
+    scenario = OverrideScenario.model_validate(
+        {
+            "scenario_id": "replace_all_pricingparams",
+            "overrides": [
+                {
+                    "name": "replace_all_pricingparams",
+                    "target_type": "pricingparams",
+                    "operation": "replace_file",
+                    "apply_to_all": True,
+                    "source": {
+                        "inline_xml": "<pricingparams><method>NEW</method></pricingparams>",
+                    },
+                }
+            ],
+        }
+    )
+
+    new_set_id = asyncio.run(
+        runner._clone_and_override_remote_trade_set(
+            base_set_id="trade_base",
+            scenario=scenario,
+            qml_runner="QML_RUNNER",
+        )
+    )
+
+    added_by_trade = {trade_id: pricing_qml for _, trade_id, _, pricing_qml in trades_api.added}
+    assert new_set_id == "trade_new"
+    assert added_by_trade["trade_empty"] == ""
+    assert added_by_trade["trade_missing"] == ""
+    assert "<method>NEW</method>" in added_by_trade["trade_full"]

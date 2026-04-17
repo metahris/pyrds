@@ -27,21 +27,9 @@
             "operation": "replace_file",
             "target_sources": [
               {
-                "target_id": "P1",
+                "target_id": "price-28405308-product",
                 "source": {
-                  "file_name": "ppm_bis1.xml"
-                }
-              },
-              {
-                "target_id": "P12",
-                "source": {
-                  "file_name": "ppm_bis2.xml"
-                }
-              },
-              {
-                "target_id": "P25",
-                "source": {
-                  "file_name": "ppm_bis3.xml"
+                  "file_name": "price-28405308-pricingparam.xml"
                 }
               }
             ]

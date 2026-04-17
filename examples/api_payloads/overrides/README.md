@@ -1,10 +1,17 @@
-# Override Payload Examples
+# Override Payloads
 
-These files document `override_plan` shapes for the structured override runner.
+Overrides let you run one base request with controlled QML changes. Each scenario is independent, so you can compare prices across several changes without editing XML files by hand.
 
-They are intentionally grouped under `examples/api_payloads/overrides/` because override plans can become large.
+Use these endpoints:
 
-Override endpoints use this API wrapper:
+```text
+POST /overrides/ot
+POST /overrides/full-qml
+```
+
+## Request Shape
+
+Every override API payload has this wrapper:
 
 ```json
 {
@@ -18,184 +25,266 @@ Override endpoints use this API wrapper:
 }
 ```
 
-Each example includes the full request shape expected by the override endpoints.
+Keys:
 
-Files:
+| Key | Meaning |
+| --- | --- |
+| `dir` | Working directory name under `pyrds_api.pyrds_dir`. |
+| `ps_request` | Normal Pyrds pricing request. |
+| `override_plan` | The scenario plan to run. |
+| `dump` | Write raw XML result files under `results/`. |
+| `dump_excel` | Write a summary Excel under `results/`. |
 
-- `marketdata_replace_file.json`
-- `ot_replace_pricingparams_add_marketdata.json`
-- `marketdata_apply_to_all_replace_block.json`
-- `product_set_xpath_text.json`
-- `pricingparams_replace_file_all_trades.json`
-- `pricingparams_replace_file_selected_trades.json`
-- `pricingparams_replace_file_per_trade.json`
-- `pricingparams_replace_blocks.json`
-- `request_set_xpath_text.json`
-- `instructionset_set_xpath_text.json`
-- `instructionset_set_xpath_attribute.json`
-- `replace_xpath_node.json`
-- `multi_scenario_override_plan.json`
-
-See `docs/overrides.md` for the full contract and validation rules.
-
-## Light XML Examples
-
-### Market Data: Fixing
-
-Input file in `inputs/data/fixing_usd.xml`:
-
-```xml
-<fixing>
-  <name>USD_FIXING</name>
-  <value>1.10</value>
-</fixing>
-```
-
-Override the value:
+## Plan Shape
 
 ```json
 {
-  "name": "set_fixing_value",
-  "target_type": "marketdata",
-  "operation": "set_xpath_text",
-  "target_id": "fixing_usd",
-  "xpath": "./value",
-  "value": "1.12",
-  "match_policy": "exactly_one"
-}
-```
-
-### Market Data: Model Block
-
-Input file in `inputs/data/model_rates.xml`:
-
-```xml
-<model>
-  <name>RATE_MODEL</name>
-  <parameters>
-    <meanReversion>0.01</meanReversion>
-  </parameters>
-</model>
-```
-
-Replace the `<parameters>` block:
-
-```json
-{
-  "name": "replace_model_parameters",
-  "target_type": "marketdata",
-  "operation": "replace_block",
-  "target_id": "model_rates",
-  "source": {
-    "inline_xml": "<parameters><meanReversion>0.02</meanReversion></parameters>"
-  }
-}
-```
-
-### Market Data: Add Extra Files In OT Mode
-
-In OT override mode, use `add_file` or `add_files` when the base OT response already contains a market data set and you need to add extra local files beside it.
-
-This also covers pricing-param QML files that pricing expects to find through market data keys.
-
-Pyrds creates a new market data set for the added files and sends both set ids to pricing:
-
-```text
-marketDataSetIds = [added_local_market_data_set_id, base_or_overridden_ot_market_data_set_id]
-```
-
-Example:
-
-```json
-{
-  "name": "add_pricingparams_as_marketdata",
-  "target_type": "marketdata",
-  "operation": "add_files",
-  "target_sources": [
+  "scenarios": [
     {
-      "target_id": "ppm_y",
-      "source": {
-        "file_path": "inputs/data/ppm_y.xml"
-      }
-    },
-    {
-      "target_id": "ppm_z",
-      "source": {
-        "file_path": "inputs/data/ppm_z.xml"
-      }
+      "scenario_id": "change_model",
+      "description": "Optional note",
+      "overrides": []
     }
   ]
 }
 ```
 
-If `target_id` is omitted for file-based sources, Pyrds derives it from the file name. For example:
+Keys:
 
-```text
-ycsetup_BASE.xml -> ycsetup|BASE
-```
+| Key | Meaning |
+| --- | --- |
+| `scenarios` | List of independent scenarios. |
+| `scenario_id` | Unique scenario name in this plan. Used in result output. |
+| `description` | Optional human note. |
+| `overrides` | Ordered list of changes for this scenario. |
 
-### Product
+Rules:
 
-Input file in `inputs/trade/TRADE_001.xml`:
+- Scenario ids must be unique.
+- Override names must be unique inside one scenario.
+- Overrides run in the order listed.
 
-```xml
-<product>
-  <notional>
-    <val>5000000</val>
-  </notional>
-  <currency>USD</currency>
-</product>
-```
+## Override Shape
 
-Set the notional:
+Most overrides look like this:
 
 ```json
 {
   "name": "set_product_notional",
   "target_type": "product",
   "operation": "set_xpath_text",
-  "target_id": "TRADE_001",
+  "target_id": "price-28405308-product",
   "xpath": "./notional/val",
   "value": "10000000",
   "match_policy": "exactly_one"
 }
 ```
 
-### Pricing Params
+Keys:
 
-Input pricing params:
+| Key | Meaning |
+| --- | --- |
+| `name` | Unique name for this change inside the scenario. |
+| `target_type` | Which QML family to change. |
+| `operation` | What kind of change to apply. |
+| `target_id` | One target key or trade id. Use only one target selector. |
+| `target_ids` | Several targets receiving the same change. Use only one target selector. |
+| `target_sources` | Several targets, each with its own source XML. Use only one target selector. |
+| `apply_to_all` | Apply the change to every available target. Use only one target selector. |
+| `source` | Replacement XML source for one target or all targets. |
+| `sources` | Several replacement XML sources, used by `replace_blocks` or `add_files`. |
+| `xpath` | XPath used by XPath operations. |
+| `value` | New text value for `set_xpath_text` or attribute value for `set_xpath_attribute`. |
+| `attribute` | Attribute name for `set_xpath_attribute`. |
+| `match_policy` | How strict XPath matching should be. Default is `exactly_one`. |
+| `allow_duplicate_tags` | Allow duplicate source root tags in `replace_blocks`. Default is `false`. |
+| `metadata` | Optional free-form notes. Not used by the runner. |
 
-```xml
-<pricingparams>
-  <model>
-    <name>MODEL_A</name>
-  </model>
-  <calibration>
-    <enabled>false</enabled>
-  </calibration>
-</pricingparams>
+## Target Types
+
+| `target_type` | Changes |
+| --- | --- |
+| `marketdata` | Market data QML files. |
+| `product` | Product QML by trade id. |
+| `pricingparams` | Pricing params QML by trade id. |
+| `request` | Request QML. No target id needed. |
+| `instructionset` | Instruction set QML. No target id needed. |
+
+For market data files ending in `_BASE`, keys use a pipe:
+
+```text
+MODEL_304_48_172_BASE.xml -> MODEL_304_48_172|BASE
+YCSETUP_BASE.xml          -> YCSETUP|BASE
 ```
 
-Replace both blocks:
+For product and pricing params, examples use:
+
+```text
+price-28405308-product
+```
+
+## Target Selectors
+
+For `marketdata`, `product`, and `pricingparams`, pick exactly one selector.
+
+```json
+{ "target_id": "MODEL_304_48_172|BASE" }
+```
+
+```json
+{ "target_ids": ["price-28405308-product"] }
+```
 
 ```json
 {
-  "name": "replace_pricingparams_blocks",
-  "target_type": "pricingparams",
-  "operation": "replace_blocks",
-  "target_id": "TRADE_001",
-  "sources": [
+  "target_sources": [
     {
-      "inline_xml": "<model><name>MODEL_B</name></model>"
-    },
-    {
-      "inline_xml": "<calibration><enabled>true</enabled></calibration>"
+      "target_id": "price-28405308-product",
+      "source": {
+        "file_name": "price-28405308-pricingparam.xml"
+      }
     }
   ]
 }
 ```
 
-Replace pricing params for every trade in the trade container with the same file:
+```json
+{ "apply_to_all": true }
+```
+
+| Selector | Use when |
+| --- | --- |
+| `target_id` | One target gets one change. |
+| `target_ids` | Several targets get the same change. |
+| `target_sources` | Each target gets a different source XML. |
+| `apply_to_all` | Every available target gets the same change. |
+
+For `request` and `instructionset`, omit target selectors because there is only one selected QML.
+
+## Source XML
+
+Operations that replace XML need `source` or `sources`.
+
+Use inline XML:
+
+```json
+{
+  "source": {
+    "inline_xml": "<advancedSettings version=\"2\"><toleranceNotio>0.02</toleranceNotio></advancedSettings>"
+  }
+}
+```
+
+Use a file in the default folder for the target type:
+
+```json
+{
+  "source": {
+    "file_name": "price-28405308-pricingparam.xml"
+  }
+}
+```
+
+Use a path from the working dir:
+
+```json
+{
+  "source": {
+    "file_path": "inputs/data/MODEL_304_48_172_BASE.xml"
+  }
+}
+```
+
+Default `file_name` folders:
+
+| Target type | Folder |
+| --- | --- |
+| `marketdata` | `inputs/data` |
+| `product` | `inputs/trade` |
+| `pricingparams` | `inputs/trade` |
+| `request` | `inputs/data` |
+| `instructionset` | `inputs/data` |
+
+Each source must set exactly one of `inline_xml`, `file_name`, or `file_path`.
+
+## Operations
+
+| `operation` | Meaning | Typical target |
+| --- | --- | --- |
+| `add_file` | Add one local market data QML file. | `marketdata` |
+| `add_files` | Add several local market data QML files. | `marketdata` |
+| `replace_file` | Replace the whole QML document. | Any target |
+| `replace_block` | Replace the first XML child block with the same tag as the source XML root. | Any target |
+| `replace_blocks` | Replace several blocks in one QML. | Any target |
+| `replace_xpath` | Replace XML nodes selected by XPath. | Any target |
+| `set_xpath_text` | Set text on XML nodes selected by XPath. | Any target |
+| `set_xpath_attribute` | Set one attribute on XML nodes selected by XPath. | Any target |
+
+## XPath Match Policy
+
+| `match_policy` | Meaning |
+| --- | --- |
+| `exactly_one` | XPath must match exactly one node. This is the default. |
+| `one_or_more` | XPath must match at least one node. |
+| `all` | Same behavior as `one_or_more`; use when the intent is every matched node. |
+
+## QML Checks
+
+Request QML must contain these exact values:
+
+```xml
+<product>!{PRODUCT}</product>
+<instructionset>!{INSTRUCTIONSET}</instructionset>
+<pricingparam>!{PRICINGPARAM}</pricingparam>
+<distribute>true</distribute>
+```
+
+The `<instruction/>` content is not constrained by this check.
+
+Instructionset QML must have:
+
+- `<instructionset>` root.
+- `<instructions>` block.
+- At least one `<item>`.
+- Every `PRICE` item must contain `valdate`, `filterDateCCF`, and `mktdataenv`.
+- `valdate` and `filterDateCCF` must match `ps_request.valuationDate`.
+- Any present `mktdataenv` must be `BASE`.
+
+## Empty Pricing Params
+
+Some trades have product QML and no pricing params. This is valid. Pricingparams overrides change trades with real pricing params and leave empty or missing pricing params empty.
+
+## Common Examples
+
+### Change One Product Value
+
+```json
+{
+  "name": "set_product_notional",
+  "target_type": "product",
+  "operation": "set_xpath_text",
+  "target_id": "price-28405308-product",
+  "xpath": "./notional/val",
+  "value": "10000000",
+  "match_policy": "exactly_one"
+}
+```
+
+### Replace One Market Data Block
+
+```json
+{
+  "name": "replace_model_advanced_settings",
+  "target_type": "marketdata",
+  "operation": "replace_block",
+  "target_id": "MODEL_304_48_172|BASE",
+  "source": {
+    "inline_xml": "<advancedSettings version=\"2\"><toleranceNotio>0.02</toleranceNotio></advancedSettings>"
+  }
+}
+```
+
+### Replace Pricing Params For Every Trade
 
 ```json
 {
@@ -204,42 +293,12 @@ Replace pricing params for every trade in the trade container with the same file
   "operation": "replace_file",
   "apply_to_all": true,
   "source": {
-    "file_path": "inputs/data/ppm_to_replace.xml"
+    "file_name": "price-28405308-pricingparam.xml"
   }
 }
 ```
 
-This loops through all trades in the trade container:
-
-```text
-[(P1, ppm1), (P12, ppm2), ...]
-```
-
-and replaces every pricing params QML with:
-
-```text
-ppm_to_replace.xml
-```
-
-Use `file_path` when the replacement file is in `inputs/data`. Use `file_name` when it is in the default pricing params folder, `inputs/trade`.
-
-Replace pricing params for a selected list of trades with one common file:
-
-```json
-{
-  "name": "replace_selected_pricingparams",
-  "target_type": "pricingparams",
-  "operation": "replace_file",
-  "target_ids": ["TRADE_001", "TRADE_002", "TRADE_003"],
-  "source": {
-    "file_name": "common_pricingparams.xml"
-  }
-}
-```
-
-`common_pricingparams.xml` is resolved from `inputs/trade`.
-
-Replace pricing params per trade/product pair:
+### Replace Pricing Params Per Trade
 
 ```json
 {
@@ -248,67 +307,55 @@ Replace pricing params per trade/product pair:
   "operation": "replace_file",
   "target_sources": [
     {
-      "target_id": "P1",
+      "target_id": "price-28405308-product",
       "source": {
-        "file_name": "ppm_bis1.xml"
-      }
-    },
-    {
-      "target_id": "P12",
-      "source": {
-        "file_name": "ppm_bis2.xml"
+        "file_name": "price-28405308-pricingparam.xml"
       }
     }
   ]
 }
 ```
 
-Use `target_sources` when each trade receives a different replacement file.
+### Add Extra Local Market Data In OT Mode
 
-### Request
-
-Input request:
-
-```xml
-<request>
-  <product>!{PRODUCT}</product>
-  <instructionset>!{INSTRUCTIONSET}</instructionset>
-  <pricingparam>!{PRICINGPARAM}</pricingparam>
-  <gridConfiguration>
-    <distribute>false</distribute>
-  </gridConfiguration>
-</request>
-```
-
-Set `distribute`:
+Use this when an OT scenario needs local QML files added beside the base OT market data set.
 
 ```json
 {
-  "name": "set_request_distribute",
+  "name": "add_local_data_as_marketdata",
+  "target_type": "marketdata",
+  "operation": "add_files",
+  "target_sources": [
+    {
+      "target_id": "MODEL_304_48_172|BASE",
+      "source": {
+        "file_path": "inputs/data/MODEL_304_48_172_BASE.xml"
+      }
+    },
+    {
+      "target_id": "YCSETUP|BASE",
+      "source": {
+        "file_path": "inputs/data/YCSETUP_BASE.xml"
+      }
+    }
+  ]
+}
+```
+
+### Change Request Text
+
+```json
+{
+  "name": "set_request_verbose_false",
   "target_type": "request",
   "operation": "set_xpath_text",
-  "xpath": "./gridConfiguration/distribute",
-  "value": "true",
+  "xpath": "./gridConfiguration/verbose",
+  "value": "false",
   "match_policy": "exactly_one"
 }
 ```
 
-### Instruction Set
-
-Input instructionset:
-
-```xml
-<instructionset>
-  <instructions>
-    <item type="PRICE">
-      <valdate>2024/06/26</valdate>
-      <mktdataenv>BASE</mktdataenv>
-    </item>
-  </instructions>
-</instructionset>
-```
-
-Set the valuation date:
+### Change Instructionset Date
 
 ```json
 {
@@ -316,12 +363,12 @@ Set the valuation date:
   "target_type": "instructionset",
   "operation": "set_xpath_text",
   "xpath": "./instructions/item[@type='PRICE']/valdate",
-  "value": "2024/03/26",
+  "value": "2024/06/26",
   "match_policy": "exactly_one"
 }
 ```
 
-Change the `type` attribute:
+### Change An Attribute
 
 ```json
 {
@@ -335,18 +382,26 @@ Change the `type` attribute:
 }
 ```
 
-### Full File Replacement
+## Example Files
 
-Replace the whole target QML:
+| File | Shows |
+| --- | --- |
+| `marketdata_replace_file.json` | Replace one market data file. |
+| `marketdata_apply_to_all_replace_block.json` | Replace one block in one market data file. |
+| `ot_replace_pricingparams_add_marketdata.json` | Replace pricing params and add local market data in OT mode. |
+| `product_set_xpath_text.json` | Change product XML text with XPath. |
+| `pricingparams_replace_file_all_trades.json` | Replace pricing params for all non-empty trades. |
+| `pricingparams_replace_file_selected_trades.json` | Replace pricing params for selected trades. |
+| `pricingparams_replace_file_per_trade.json` | Replace pricing params per trade using `target_sources`. |
+| `pricingparams_replace_blocks.json` | Replace several blocks in pricing params. |
+| `request_set_xpath_text.json` | Change request XML text. |
+| `instructionset_set_xpath_text.json` | Change instructionset XML text. |
+| `instructionset_set_xpath_attribute.json` | Change instructionset XML attribute. |
+| `replace_xpath_node.json` | Replace an XML node selected by XPath. |
+| `multi_scenario_override_plan.json` | Run several independent scenarios. |
 
-```json
-{
-  "name": "replace_full_fixing_file",
-  "target_type": "marketdata",
-  "operation": "replace_file",
-  "target_id": "fixing_usd",
-  "source": {
-    "inline_xml": "<fixing><name>USD_FIXING</name><value>1.15</value></fixing>"
-  }
-}
+For the full contract and more validation details, see:
+
+```text
+docs/overrides.md
 ```

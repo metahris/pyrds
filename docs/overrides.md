@@ -174,7 +174,7 @@ For mapping targets like `marketdata`, `product`, and `pricingparams`, select ei
 
 ```json
 {
-  "target_id": "EUR|BASE"
+  "target_id": "MODEL_304_48_172|BASE"
 }
 ```
 
@@ -182,7 +182,7 @@ or a selected list of targets:
 
 ```json
 {
-  "target_ids": ["TRADE_001", "TRADE_002", "TRADE_003"]
+  "target_ids": ["price-28405308-product"]
 }
 ```
 
@@ -192,15 +192,9 @@ or a selected list where each target has its own replacement source:
 {
   "target_sources": [
     {
-      "target_id": "P1",
+      "target_id": "price-28405308-product",
       "source": {
-        "file_name": "ppm_bis1.xml"
-      }
-    },
-    {
-      "target_id": "P12",
-      "source": {
-        "file_name": "ppm_bis2.xml"
+        "file_name": "price-28405308-pricingparam.xml"
       }
     }
   ]
@@ -288,7 +282,7 @@ Example:
   "name": "add_static_data",
   "target_type": "marketdata",
   "operation": "add_file",
-  "target_id": "static_data|BASE",
+  "target_id": "static_data",
   "source": {
     "file_path": "inputs/data/static_data.xml"
   }
@@ -315,20 +309,20 @@ Use `target_sources` when you want to explicitly control each market data key:
 
 ```json
 {
-  "name": "add_pricingparams_as_marketdata",
+  "name": "add_local_qmls_as_marketdata",
   "target_type": "marketdata",
   "operation": "add_files",
   "target_sources": [
     {
-      "target_id": "ppm_y",
+      "target_id": "MODEL_304_48_172|BASE",
       "source": {
-        "file_path": "inputs/data/ppm_y.xml"
+        "file_path": "inputs/data/MODEL_304_48_172_BASE.xml"
       }
     },
     {
-      "target_id": "ppm_z",
+      "target_id": "CALIBRATOR_304_USD|BASE",
       "source": {
-        "file_path": "inputs/data/ppm_z.xml"
+        "file_path": "inputs/data/CALIBRATOR_304_USD_BASE.xml"
       }
     }
   ]
@@ -344,7 +338,7 @@ Use `sources` when keys can be derived from file names:
   "operation": "add_files",
   "sources": [
     {
-      "file_name": "ycsetup_BASE.xml"
+      "file_name": "YCSETUP_BASE.xml"
     },
     {
       "file_name": "static_data.xml"
@@ -356,7 +350,7 @@ Use `sources` when keys can be derived from file names:
 Example key derivation:
 
 ```text
-ycsetup_BASE.xml -> ycsetup|BASE
+YCSETUP_BASE.xml -> YCSETUP|BASE
 ```
 
 Validation:
@@ -383,9 +377,9 @@ Example:
   "name": "replace_market_data_file",
   "target_type": "marketdata",
   "operation": "replace_file",
-  "target_id": "EUR|BASE",
+  "target_id": "MODEL_304_48_172|BASE",
   "source": {
-    "file_name": "EUR_BASE_replacement.xml"
+    "file_name": "MODEL_304_48_172_BASE.xml"
   }
 }
 ```
@@ -413,7 +407,7 @@ Example:
   "name": "replace_product_payoff",
   "target_type": "product",
   "operation": "replace_block",
-  "target_id": "TRADE_001",
+  "target_id": "price-28405308-product",
   "source": {
     "inline_xml": "<payoff><type>UPDATED</type></payoff>"
   }
@@ -442,7 +436,7 @@ Example:
   "name": "replace_multiple_pricing_blocks",
   "target_type": "pricingparams",
   "operation": "replace_blocks",
-  "target_id": "TRADE_001",
+  "target_id": "price-28405308-product",
   "sources": [
     {
       "inline_xml": "<model><name>MODEL_A</name></model>"
@@ -634,9 +628,9 @@ Example file:
 examples/api_payloads/overrides/marketdata_replace_file.json
 ```
 
-### Scenario 2: Replace All Market Data Files With The Same Block Update
+### Scenario 2: Replace One Market Data Block
 
-Use `marketdata + replace_block + apply_to_all=true`.
+Use `marketdata + replace_block + target_id`.
 
 Example file:
 
@@ -654,8 +648,8 @@ This does not mutate the OT market data set. Pyrds creates an additional market 
 
 Typical flow:
 
-- `pricingparams + replace_file + apply_to_all=true` replaces every trade pricing params with `ppm_to_replace.xml`.
-- `marketdata + add_files` adds `ppm_y.xml` and `ppm_z.xml` to an extra market data set.
+- `pricingparams + replace_file + apply_to_all=true` replaces every non-empty trade pricing params with `price-28405308-pricingparam.xml`.
+- `marketdata + add_files` adds local files such as `MODEL_304_48_172_BASE.xml`, `CALIBRATOR_304_USD_BASE.xml`, `YCSETUP_BASE.xml`, and `VOLIRSETUP_BASE.xml` to an extra market data set.
 - The recompute uses both market data sets: `[extra_local_set_id, base_or_cloned_ot_set_id]`.
 
 Example file:
@@ -691,33 +685,35 @@ Use `pricingparams + replace_file + apply_to_all=true`.
 This loops over the trade container:
 
 ```text
-[(P1, ppm1), (P12, ppm2), ...]
+[(price-28405308-product, price-28405308-pricingparam), ...]
 ```
 
 and replaces every pricing params QML with one common file:
 
 ```text
-[(P1, ppm_to_replace), (P12, ppm_to_replace), ...]
+[(price-28405308-product, price-28405308-pricingparam), ...]
 ```
+
+Trades with product QML and empty or missing pricing params are normal. In structured overrides, those trades are cloned with empty pricing params and pricingparams overrides skip them instead of failing XML parsing.
 
 If the common file refers to extra pricing-param QMLs by market data key, add those files in the same override scenario:
 
 ```json
 {
-  "name": "add_pricingparams_as_marketdata",
+  "name": "add_local_data_as_marketdata",
   "target_type": "marketdata",
   "operation": "add_files",
   "target_sources": [
     {
-      "target_id": "ppm_y",
+      "target_id": "MODEL_304_48_172|BASE",
       "source": {
-        "file_path": "inputs/data/ppm_y.xml"
+        "file_path": "inputs/data/MODEL_304_48_172_BASE.xml"
       }
     },
     {
-      "target_id": "ppm_z",
+      "target_id": "YCSETUP|BASE",
       "source": {
-        "file_path": "inputs/data/ppm_z.xml"
+        "file_path": "inputs/data/YCSETUP_BASE.xml"
       }
     }
   ]
@@ -735,7 +731,7 @@ If the common file is under `inputs/data`, use:
 ```json
 {
   "source": {
-    "file_path": "inputs/data/ppm_to_replace.xml"
+    "file_path": "inputs/data/price-28405308-pricingparam.xml"
   }
 }
 ```
@@ -745,7 +741,7 @@ If the common file is under `inputs/trade`, use:
 ```json
 {
   "source": {
-    "file_name": "ppm_to_replace.xml"
+    "file_name": "price-28405308-pricingparam.xml"
   }
 }
 ```
@@ -767,13 +763,13 @@ Use `pricingparams + replace_file + target_sources`.
 This covers a trade container like:
 
 ```text
-[(P1, ppm1), (P12, ppm2), ...]
+[(price-28405308-product, old_pricingparams), ...]
 ```
 
 replaced with:
 
 ```text
-[(P1, ppm_bis1), (P12, ppm_bis2), ...]
+[(price-28405308-product, price-28405308-pricingparam), ...]
 ```
 
 Example file:

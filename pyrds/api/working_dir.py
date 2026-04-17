@@ -38,7 +38,6 @@ def create_working_dir(settings: Settings, name: str) -> tuple[FilesPath, list[s
         files_path.trade,
         files_path.results,
         files_path.qml_updater,
-        files_path.backtest,
     ]
 
     created: list[str] = []

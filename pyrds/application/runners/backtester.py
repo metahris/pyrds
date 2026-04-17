@@ -24,7 +24,8 @@ class Backtester(BaseRunner):
             return name
 
         prefix = name[:index]
-        return f"{prefix}|{carto}"
+        suffix = name[index + 1 :]
+        return f"{prefix}|{suffix}"
 
     @staticmethod
     def result_file_name(folder_name: str) -> str:

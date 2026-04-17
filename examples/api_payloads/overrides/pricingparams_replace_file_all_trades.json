@@ -19,7 +19,7 @@
     "scenarios": [
       {
         "scenario_id": "replace_all_trade_pricingparams",
-        "description": "Loop over every trade in the trade container and replace its pricing params with the same file.",
+        "description": "Loop over every trade in the trade container and replace non-empty pricing params with the same file.",
         "overrides": [
           {
             "name": "replace_all_pricingparams",
@@ -27,7 +27,7 @@
             "operation": "replace_file",
             "apply_to_all": true,
             "source": {
-              "file_path": "inputs/data/ppm_to_replace.xml"
+              "file_name": "price-28405308-pricingparam.xml"
             }
           }
         ]

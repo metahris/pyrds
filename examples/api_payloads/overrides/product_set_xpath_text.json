@@ -25,7 +25,7 @@
             "name": "set_product_notional",
             "target_type": "product",
             "operation": "set_xpath_text",
-            "target_id": "TRADE_001",
+            "target_id": "price-28405308-product",
             "xpath": ".//notional/val",
             "value": "10000000",
             "match_policy": "exactly_one"

@@ -25,7 +25,7 @@
             "name": "replace_model_and_calibration",
             "target_type": "pricingparams",
             "operation": "replace_blocks",
-            "target_id": "TRADE_001",
+            "target_id": "price-28405308-product",
             "sources": [
               {
                 "inline_xml": "<model><name>MODEL_A</name></model>"

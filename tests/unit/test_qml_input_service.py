@@ -16,14 +16,23 @@ def test_get_market_data_qmls_excludes_request_instructionset_results_and_stress
 
     market_data = service.get_market_data_qmls(request_set_tags=REQUEST_SET_TAGS)
 
-    assert set(market_data) == {"MODEL_304_48_172_SNE"}
-    assert "<model>" in market_data["MODEL_304_48_172_SNE"]
+    assert set(market_data) == {
+        "120482|BASE",
+        "123778|BASE",
+        "CALIBRATOR_304_USD|BASE",
+        "MODEL_304_48_172|BASE",
+        "VOL_IR_USD|BASE",
+        "VOLIRSETUP|BASE",
+        "YCSETUP|BASE",
+        "static_data",
+    }
+    assert "<model" in market_data["MODEL_304_48_172|BASE"]
 
 
 def test_market_data_base_suffix_is_uploaded_with_pipe_base_key(working_dir, logger) -> None:
     from pathlib import Path
 
-    Path(working_dir.data, "ycsetup_BASE.xml").write_text("<ycsetup />", encoding="utf-8")
+    Path(working_dir.data, "YCSETUP_ALT_BASE.xml").write_text("<ycsetup />", encoding="utf-8")
     service = QmlInputService(
         qml_handler=QmlHandler(logger=logger),
         files_path=working_dir,
@@ -32,8 +41,8 @@ def test_market_data_base_suffix_is_uploaded_with_pipe_base_key(working_dir, log
 
     market_data = service.get_market_data_qmls(request_set_tags=REQUEST_SET_TAGS)
 
-    assert "ycsetup|BASE" in market_data
-    assert "ycsetup_BASE" not in market_data
+    assert "YCSETUP_ALT|BASE" in market_data
+    assert "YCSETUP_ALT_BASE" not in market_data
 
 
 def test_get_trade_qmls_selects_product_and_pricing_params(working_dir, logger) -> None:

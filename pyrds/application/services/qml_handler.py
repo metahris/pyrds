@@ -72,29 +72,29 @@ class QmlHandler:
             if base_request is not None:
                 request_root = base_request
 
-        self._set_text_if_present(
+        self._require_request_text(
             request_root,
             "product",
             "!{PRODUCT}",
-            warning="product tag of the request qml must be !{PRODUCT}",
+            label="product tag of the request qml",
         )
-        self._set_text_if_present(
+        self._require_request_text(
             request_root,
             "instructionset",
             "!{INSTRUCTIONSET}",
-            warning="instructionset tag of the request qml must be !{INSTRUCTIONSET}",
+            label="instructionset tag of the request qml",
         )
-        self._set_text_if_present(
+        self._require_request_text(
             request_root,
             "pricingparam",
             "!{PRICINGPARAM}",
-            warning="pricingparam tag of the request qml must be !{PRICINGPARAM}",
+            label="pricingparam tag of the request qml",
         )
-        self._set_text_if_present(
+        self._require_request_text(
             request_root,
             "./gridConfiguration/distribute",
             "true",
-            warning="distribute tag of the gridConfiguration must be true",
+            label="distribute tag of the gridConfiguration",
         )
 
         result = self.clean_qml(ET.tostring(root, encoding="unicode"))
@@ -108,36 +108,49 @@ class QmlHandler:
     def verify_instruction_set_qml(self, *, instruction_set_qml: str, ps_request: Any | None = None) -> None:
         log_info(self.logger, "Verifying instruction set QML")
         if not instruction_set_qml:
-            log_info(self.logger, "Instruction set QML is empty")
-            return
+            raise QmlVerificationError("Instruction set QML is required.")
         root = self._parse_xml(instruction_set_qml)
         if self._local_name(root.tag) != "instructionset":
             raise QmlVerificationError("Instruction set QML root must be 'instructionset'.")
 
         instructions = root.find("instructions")
         if instructions is None:
-            log_info(self.logger, "Instruction set QML verified", instruction_count=0)
-            return
+            raise QmlVerificationError("Instruction set QML must contain an instructions block.")
 
         expected_date = self._extract_ps_request_date(ps_request) if ps_request is not None else None
-        instruction_count = 0
-        for index, item in enumerate(instructions.findall("item"), start=1):
-            instruction_count += 1
-            if expected_date is not None:
-                self._verify_instruction_date(
-                    item=item,
-                    tag="valdate",
-                    expected_date=expected_date,
-                    index=index,
-                )
-                self._verify_instruction_date(
-                    item=item,
-                    tag="filterDateCCF",
-                    expected_date=expected_date,
-                    index=index,
-                )
+        instruction_items = instructions.findall("item")
+        if not instruction_items:
+            raise QmlVerificationError("Instruction set QML instructions block must contain at least one item.")
 
-            market_data_env = self._optional_text(item, "mktdataenv")
+        for index, item in enumerate(instruction_items, start=1):
+            instruction_type = item.get("type")
+            is_price = instruction_type == "PRICE"
+            for tag in ("valdate", "filterDateCCF"):
+                if is_price:
+                    self._require_instruction_text(
+                        item,
+                        tag,
+                        index=index,
+                        instruction_type=instruction_type,
+                    )
+                if expected_date is not None:
+                    self._verify_instruction_date(
+                        item=item,
+                        tag=tag,
+                        expected_date=expected_date,
+                        index=index,
+                    )
+
+            market_data_env = (
+                self._require_instruction_text(
+                    item,
+                    "mktdataenv",
+                    index=index,
+                    instruction_type=instruction_type,
+                )
+                if is_price
+                else self._optional_text(item, "mktdataenv")
+            )
             if market_data_env is not None and market_data_env != "BASE":
                 raise QmlVerificationError(
                     "mktdataenv in instructionset must be BASE "
@@ -147,7 +160,7 @@ class QmlHandler:
         log_info(
             self.logger,
             "Instruction set QML verified",
-            instruction_count=instruction_count,
+            instruction_count=len(instruction_items),
             expected_date=str(expected_date) if expected_date is not None else None,
         )
 
@@ -772,15 +785,29 @@ class QmlHandler:
         value = node.text.strip()
         return value or None
 
-    def _set_text_if_present(self, root: ET.Element, path: str, expected: str, *, warning: str) -> None:
+    def _require_request_text(self, root: ET.Element, path: str, expected: str, *, label: str) -> None:
         node = root.find(path)
         if node is None:
-            return
+            raise QmlVerificationError(f"{label} is required and must be {expected}.")
         current = (node.text or "").strip()
         if current != expected:
-            if self.logger is not None:
-                self.logger.warning("%s but got %s", warning, current)
-            node.text = expected
+            raise QmlVerificationError(f"{label} must be {expected}, got {current or '<empty>'}.")
+
+    def _require_instruction_text(
+        self,
+        item: ET.Element,
+        tag: str,
+        *,
+        index: int,
+        instruction_type: str | None,
+    ) -> str:
+        value = self._optional_text(item, tag)
+        if value is None:
+            type_label = instruction_type or "<missing type>"
+            raise QmlVerificationError(
+                f"{tag} is required in instruction set item {index} ({type_label})."
+            )
+        return value
 
     def _verify_instruction_date(
         self,

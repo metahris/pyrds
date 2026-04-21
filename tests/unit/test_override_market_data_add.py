@@ -129,6 +129,11 @@ def test_override_ot_adds_market_data_set_next_to_base_ot_set(tmp_path: Path, lo
         ("mkt_added", "static_data|BASE", "<staticData><value>1</value></staticData>")
     ]
     assert ps_api.bodies[0]["marketDataSetIds"] == ["mkt_added", "mkt_base"]
+    assert logger.contains("Starting OT override scenario")
+    assert logger.contains("Resolved added market data QMLs for override scenario")
+    assert logger.contains("static_data|BASE")
+    assert logger.contains("Adding market data QML to set")
+    assert logger.contains("Finished OT override scenario")
 
 
 async def async_run_ot_scenario(runner: OverrideQmlRunner, scenario: OverrideScenario):
@@ -220,3 +225,8 @@ def test_pricingparams_override_allows_empty_or_missing_trade_pricingparams(tmp_
     assert added_by_trade["trade_empty"] == ""
     assert added_by_trade["trade_missing"] == ""
     assert "<method>NEW</method>" in added_by_trade["trade_full"]
+    assert logger.contains("Applying trade override")
+    assert logger.contains("Skipping empty pricing params override")
+    assert logger.contains("trade_empty")
+    assert logger.contains("trade_missing")
+    assert logger.contains("Adding trade QML to set")

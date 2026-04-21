@@ -80,3 +80,14 @@ def test_openapi_contains_expected_public_routes(monkeypatch) -> None:
     assert "/overrides/ot" in paths
     assert "/results/parse/price" in paths
     assert "/results/parse/vector/{instruction_name}" not in paths
+
+
+def test_docs_use_pinned_swagger_ui_assets(monkeypatch) -> None:
+    monkeypatch.setattr("pyrds.api.main.get_client", lambda: DummyClient())
+    with TestClient(app) as client:
+        response = client.get("/docs")
+
+    assert response.status_code == 200
+    assert "swagger-ui-dist@5.17.14/swagger-ui-bundle.js" in response.text
+    assert "swagger-ui-dist@5.17.14/swagger-ui.css" in response.text
+    assert "swagger-ui-dist@5/swagger-ui-bundle.js" not in response.text

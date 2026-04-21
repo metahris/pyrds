@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from fastapi.openapi.docs import get_swagger_ui_html
 from pydantic import ValidationError as PydanticValidationError
 from fastapi.responses import JSONResponse
 
@@ -48,12 +49,14 @@ async def lifespan(_: FastAPI):
 
 
 metadata = load_api_metadata()
+SWAGGER_UI_DIST_VERSION = "5.17.14"
 app = FastAPI(
     title=metadata.get("title", "Pyrds"),
     description=metadata.get("description"),
     version=metadata.get("version", "3.0.0"),
     contact=metadata.get("contact"),
     openapi_tags=load_api_tags(),
+    docs_url=None,
     lifespan=lifespan,
 )
 app.include_router(health_router)
@@ -64,6 +67,22 @@ app.include_router(stress_router)
 app.include_router(qlib_router)
 app.include_router(overrides_router)
 app.include_router(results_router)
+
+
+@app.get("/docs", include_in_schema=False)
+async def swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title=f"{app.title} - Swagger UI",
+        swagger_js_url=(
+            f"https://cdn.jsdelivr.net/npm/swagger-ui-dist@{SWAGGER_UI_DIST_VERSION}/swagger-ui-bundle.js"
+        ),
+        swagger_css_url=(
+            f"https://cdn.jsdelivr.net/npm/swagger-ui-dist@{SWAGGER_UI_DIST_VERSION}/swagger-ui.css"
+        ),
+        oauth2_redirect_url=app.swagger_ui_oauth2_redirect_url,
+        swagger_ui_parameters=app.swagger_ui_parameters,
+    )
 
 
 @app.middleware("http")

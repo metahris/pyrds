@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pyrds.api.logging import api_logger
 from pyrds.infrastructure.config.settings import Settings
 from pyrds.sdk.client import PyrdsClient
 
@@ -13,4 +14,4 @@ def get_settings() -> Settings:
 
 @lru_cache(maxsize=1)
 def get_client() -> PyrdsClient:
-    return PyrdsClient(settings=get_settings())
+    return PyrdsClient(settings=get_settings(), logger=api_logger)

@@ -460,6 +460,19 @@ class BaseAPI:
         *,
         fail_on_any_error: bool = True,
     ) -> dict[str, Any]:
+        output, failures = await BaseAPI.gather_dict_detailed(tasks_by_key)
+
+        if failures and fail_on_any_error:
+            raise BatchRequestError(
+                f"{len(failures)} task(s) failed out of {len(tasks_by_key)}.",
+                failures=failures,
+            )
+        return output
+
+    @staticmethod
+    async def gather_dict_detailed(
+        tasks_by_key: Mapping[str, asyncio.Future],
+    ) -> tuple[dict[str, Any], dict[str, Exception]]:
         BaseAPI.ensure_unique_keys(list(tasks_by_key.keys()))
         results = await asyncio.gather(*tasks_by_key.values(), return_exceptions=True)
 
@@ -471,12 +484,7 @@ class BaseAPI:
             else:
                 output[key] = result
 
-        if failures and fail_on_any_error:
-            raise BatchRequestError(
-                f"{len(failures)} task(s) failed out of {len(tasks_by_key)}.",
-                failures=failures,
-            )
-        return output
+        return output, failures
 
     @staticmethod
     def encode_path(value: str) -> str:

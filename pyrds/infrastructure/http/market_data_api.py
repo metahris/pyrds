@@ -45,23 +45,47 @@ class MarketDataApi(BaseAPI):
             allow_retry=False,
         )
 
-    def get_mkt_data_keys(self, set_id: str, endpoint: str = "marketdata-sets") -> list[Any]:
-        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata")
+    def get_mkt_data_keys(
+        self,
+        set_id: str,
+        endpoint: str = "marketdata-sets",
+        params: dict[str, Any] | None = None,
+    ) -> list[Any]:
+        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata", params=params)
         return self.require_list_field(response, "marketdata_key")
 
-    async def get_mkt_data_keys_async(self, set_id: str, endpoint: str = "marketdata-sets") -> list[Any]:
-        response = await self._get_async(endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata")
+    async def get_mkt_data_keys_async(
+        self,
+        set_id: str,
+        endpoint: str = "marketdata-sets",
+        params: dict[str, Any] | None = None,
+    ) -> list[Any]:
+        response = await self._get_async(endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata", params=params)
         return self.require_list_field(response, "marketdata_key")
 
-    def get_mkt_data_content(self, set_id: str, key: str, endpoint: str = "marketdata-sets") -> str:
+    def get_mkt_data_content(
+        self,
+        set_id: str,
+        key: str,
+        endpoint: str = "marketdata-sets",
+        params: dict[str, Any] | None = None,
+    ) -> str:
         response = self._get(
-            endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}"
+            endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}",
+            params=params,
         )
         return self.require_str_field(response, "qml")
 
-    async def get_mkt_data_content_async(self, set_id: str, key: str, endpoint: str = "marketdata-sets") -> str:
+    async def get_mkt_data_content_async(
+        self,
+        set_id: str,
+        key: str,
+        endpoint: str = "marketdata-sets",
+        params: dict[str, Any] | None = None,
+    ) -> str:
         response = await self._get_async(
-            endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}"
+            endpoint=f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}",
+            params=params,
         )
         return self.require_str_field(response, "qml")
 
@@ -77,21 +101,23 @@ class MarketDataApi(BaseAPI):
         self,
         set_id: str,
         endpoint: str = "marketdata-sets",
+        params: dict[str, Any] | None = None,
         *,
         fail_on_any_error: bool = True,
     ) -> dict[str, str]:
-        keys = await self.get_mkt_data_keys_async(set_id=set_id, endpoint=endpoint)
+        keys = await self.get_mkt_data_keys_async(set_id=set_id, endpoint=endpoint, params=params)
         tasks_by_key: dict[str, asyncio.Future[str]] = {}
 
         for key in keys:
             tasks_by_key[key] = asyncio.create_task(
                 self._get_single_qml(
-                    f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}"
+                    f"{endpoint}/{self.encode_path(set_id)}/marketdata/{self.encode_path(key)}",
+                    params=params,
                 )
             )
 
         return await self.gather_dict(tasks_by_key, fail_on_any_error=fail_on_any_error)
 
-    async def _get_single_qml(self, endpoint: str) -> str:
-        response = await self._get_async(endpoint=endpoint)
+    async def _get_single_qml(self, endpoint: str, params: dict[str, Any] | None = None) -> str:
+        response = await self._get_async(endpoint=endpoint, params=params)
         return self.require_str_field(response, "qml")

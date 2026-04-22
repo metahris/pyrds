@@ -62,7 +62,7 @@ class GenericRunner(BaseRunner):
         trade_id = self.require_non_empty_str(product_qml_data.get("trade_id"), "trade_id")
         product_qml = self.require_non_empty_str(product_qml_data.get("product_qml"), "product_qml")
 
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         self.add_market_data_qml(
             set_id=market_data_set_id,
@@ -116,7 +116,7 @@ class GenericRunner(BaseRunner):
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
         result_file_name = self.result_file_name()
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         log_info(
             self.logger,

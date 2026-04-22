@@ -134,7 +134,7 @@ class Backtester(BaseRunner):
             ps_request.gridPricerTechnicalDetails.qmlRunner,
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         log_info(
             self.logger,

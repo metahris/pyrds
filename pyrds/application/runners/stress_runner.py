@@ -58,7 +58,7 @@ class StressRunner(BaseRunner):
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
         result_file_name = self.result_file_name()
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         log_info(self.logger, "Started stress full QML pricing", qml_runner=qml_runner)
 
@@ -123,7 +123,7 @@ class StressRunner(BaseRunner):
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
         result_file_name = self.result_file_name()
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         log_info(self.logger, "Started stress OT pricing", qml_runner=qml_runner)
 

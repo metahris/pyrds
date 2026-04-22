@@ -20,7 +20,7 @@ class HybridRunner(BaseRunner):
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
         result_file_name = self.result_file_name()
-        create_set_params = {"qmlRunner": qml_runner}
+        create_set_params = self.build_set_access_params(qml_runner=qml_runner)
 
         log_info(
             self.logger,

@@ -423,7 +423,7 @@ class OverrideQmlRunner(BaseRunner):
         manifest_path: str,
         manifest: dict[str, Any],
     ) -> dict[str, Any]:
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
         set_ids = self.create_full_qml_sets(qml_runner=qml_runner)
         log_info(
             self.logger,
@@ -542,11 +542,12 @@ class OverrideQmlRunner(BaseRunner):
         scenario: OverrideScenario,
         qml_runner: str,
     ) -> str:
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
         new_set_id = self.market_api.create_set(params=params)
-        keys = await self.market_api.get_mkt_data_keys_async(set_id=base_set_id)
+        keys = await self.market_api.get_mkt_data_keys_async(set_id=base_set_id, params=params)
         qml_by_key = await self.market_api.get_ot_mkt_data_qmls_async(
             set_id=base_set_id,
+            params=params,
             fail_on_any_error=True,
         )
 
@@ -582,7 +583,7 @@ class OverrideQmlRunner(BaseRunner):
         if not added_qmls:
             return None
 
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
         set_id = self.market_api.create_set(params=params)
         log_info(
             self.logger,
@@ -654,12 +655,13 @@ class OverrideQmlRunner(BaseRunner):
         scenario: OverrideScenario,
         qml_runner: str,
     ) -> str:
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
         new_set_id = self.trades_api.create_set(params=params)
-        trade_ids = await self.trades_api.get_trades_in_set_async(set_id=base_set_id)
+        trade_ids = await self.trades_api.get_trades_in_set_async(set_id=base_set_id, params=params)
         trade_contents = await self.trades_api.get_specific_trade_content_async(
             set_id=base_set_id,
             trade_ids=[str(item) for item in trade_ids],
+            params=params,
             fail_on_any_error=True,
         )
 

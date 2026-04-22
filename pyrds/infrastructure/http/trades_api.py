@@ -63,13 +63,25 @@ class TradesApi(BaseAPI):
         endpoint = f"{endpoint}/{self.encode_path(set_id)}"
         return await self._put_async(endpoint=endpoint, json=body, params=params, allow_retry=False)
 
-    def get_set_content(self, set_id: str, endpoint: str = "trade-sets") -> list[Any]:
-        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}")
+    def get_set_content(
+        self,
+        set_id: str,
+        endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
+    ) -> list[Any]:
+        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}", params=params)
         return self.require_list_field(response, "trades")
 
-    def get_trade_content(self, set_id: str, trade_id: str, endpoint: str = "trade-sets") -> dict[str, Any]:
+    def get_trade_content(
+        self,
+        set_id: str,
+        trade_id: str,
+        endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         response = self._get(
-            endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades/{self.encode_path(trade_id)}"
+            endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades/{self.encode_path(trade_id)}",
+            params=params,
         )
         if not isinstance(response, dict):
             raise UnexpectedResponseError("Expected dict response for get_trade_content.")
@@ -80,20 +92,32 @@ class TradesApi(BaseAPI):
         set_id: str,
         trade_id: str,
         endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         response = await self._get_async(
-            endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades/{self.encode_path(trade_id)}"
+            endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades/{self.encode_path(trade_id)}",
+            params=params,
         )
         if not isinstance(response, dict):
             raise UnexpectedResponseError("Expected dict response for get_trade_content_async.")
         return response
 
-    def get_trades_in_set(self, set_id: str, endpoint: str = "trade-sets") -> list[Any]:
-        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades")
+    def get_trades_in_set(
+        self,
+        set_id: str,
+        endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
+    ) -> list[Any]:
+        response = self._get(endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades", params=params)
         return self.require_list_field(response, "ids")
 
-    async def get_trades_in_set_async(self, set_id: str, endpoint: str = "trade-sets") -> list[Any]:
-        response = await self._get_async(endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades")
+    async def get_trades_in_set_async(
+        self,
+        set_id: str,
+        endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
+    ) -> list[Any]:
+        response = await self._get_async(endpoint=f"{endpoint}/{self.encode_path(set_id)}/trades", params=params)
         return self.require_list_field(response, "ids")
 
     async def get_specific_trade_content_async(
@@ -101,6 +125,7 @@ class TradesApi(BaseAPI):
         set_id: str,
         trade_ids: list[str],
         endpoint: str = "trade-sets",
+        params: dict[str, Any] | None = None,
         *,
         fail_on_any_error: bool = True,
     ) -> dict[str, dict[str, Any]]:
@@ -108,7 +133,12 @@ class TradesApi(BaseAPI):
         tasks_by_key: dict[str, asyncio.Future[dict[str, Any]]] = {}
         for trade_id in trade_ids:
             tasks_by_key[trade_id] = asyncio.create_task(
-                self.get_trade_content_async(set_id=set_id, trade_id=trade_id, endpoint=endpoint)
+                self.get_trade_content_async(
+                    set_id=set_id,
+                    trade_id=trade_id,
+                    endpoint=endpoint,
+                    params=params,
+                )
             )
         return await self.gather_dict(tasks_by_key, fail_on_any_error=fail_on_any_error)
 

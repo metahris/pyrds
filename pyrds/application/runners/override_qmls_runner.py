@@ -31,8 +31,8 @@ class OverrideQmlsRunner(BaseRunner):
         data: dict[str, Any],
         ps_request: PsRequest,
     ) -> str:
-        params = {"qmlRunner": ps_request.gridPricerTechnicalDetails.qmlRunner}
-        keys = [str(key) for key in self.market_api.get_mkt_data_keys(set_id=market_data_set_id)]
+        params = self.build_set_access_params(qml_runner=ps_request.gridPricerTechnicalDetails.qmlRunner)
+        keys = [str(key) for key in self.market_api.get_mkt_data_keys(set_id=market_data_set_id, params=params)]
         overridden_keys: set[str] = set()
         new_set_id = self.market_api.create_set(params=params)
 
@@ -57,7 +57,11 @@ class OverrideQmlsRunner(BaseRunner):
                 file_name = entry["file_name"]
                 if file_name not in keys:
                     raise ValueError(f"{file_name} does not exist in market data set {keys}")
-                content = self.market_api.get_mkt_data_content(set_id=market_data_set_id, key=file_name)
+                content = self.market_api.get_mkt_data_content(
+                    set_id=market_data_set_id,
+                    key=file_name,
+                    params=params,
+                )
                 qml = self.qml_handler.update_block_in_qml(
                     data_id=file_name,
                     block=entry["value"],
@@ -74,7 +78,7 @@ class OverrideQmlsRunner(BaseRunner):
         for key in keys:
             if key in overridden_keys:
                 continue
-            qml = self.market_api.get_mkt_data_content(set_id=market_data_set_id, key=key)
+            qml = self.market_api.get_mkt_data_content(set_id=market_data_set_id, key=key, params=params)
             self.add_market_data_qml(
                 set_id=new_set_id,
                 market_data_id=key,
@@ -94,12 +98,13 @@ class OverrideQmlsRunner(BaseRunner):
         product_block: str | None = None,
         pricingparams_block: str | None = None,
     ) -> str:
-        params = {"qmlRunner": ps_request.gridPricerTechnicalDetails.qmlRunner}
+        params = self.build_set_access_params(qml_runner=ps_request.gridPricerTechnicalDetails.qmlRunner)
         new_set_id = self.trades_api.create_set(params=params)
-        trade_ids = [str(trade_id) for trade_id in self.trades_api.get_trades_in_set(set_id=trade_set_id)]
+        trade_ids = [str(trade_id) for trade_id in self.trades_api.get_trades_in_set(set_id=trade_set_id, params=params)]
         trade_contents = await self.trades_api.get_specific_trade_content_async(
             set_id=trade_set_id,
             trade_ids=trade_ids,
+            params=params,
             fail_on_any_error=True,
         )
 
@@ -276,7 +281,7 @@ class OverrideQmlsRunner(BaseRunner):
         ps_request: PsRequest,
         dump: bool = True,
     ) -> dict[str, dict[str, Any]]:
-        params = {"qmlRunner": ps_request.gridPricerTechnicalDetails.qmlRunner}
+        params = self.build_set_access_params(qml_runner=ps_request.gridPricerTechnicalDetails.qmlRunner)
         market_data = self.get_override_data()["mkt_data"]
         trade_set_id = self.trades_api.create_set(params=params)
         request_set_id = self.ps_api.create_set(qml_runner=ps_request.gridPricerTechnicalDetails.qmlRunner)

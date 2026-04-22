@@ -78,6 +78,8 @@ class ApiClientSettings(BaseModel):
 
     port: int
     host: str | None = None
+    scope: str = "_default"
+    collection: str = "_default"
     authentication: AuthenticationSettings = Field(default_factory=AuthenticationSettings)
     environment: dict[str, str] = Field(default_factory=dict)
     proxies: dict[str, str] = Field(default_factory=dict)

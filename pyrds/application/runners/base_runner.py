@@ -174,9 +174,23 @@ class BaseRunner:
         except Exception as exc:
             raise PricingComputationError(f"Asynchronous keyed pricing failed: {exc}") from exc
 
+    def build_set_access_params(self, *, qml_runner: str | None = None) -> dict[str, Any]:
+        return self.market_api.build_set_access_params(qml_runner=qml_runner)
+
+    def merge_set_access_params(
+        self,
+        *,
+        params: Mapping[str, Any] | None = None,
+        qml_runner: str | None = None,
+    ) -> dict[str, Any]:
+        resolved = self.build_set_access_params(qml_runner=qml_runner)
+        if params:
+            resolved.update({str(key): value for key, value in params.items() if value is not None})
+        return resolved
+
     def create_full_qml_sets(self, *, qml_runner: str) -> dict[str, str]:
         qml_runner = self.require_non_empty_str(qml_runner, "qml_runner")
-        params = {"qmlRunner": qml_runner}
+        params = self.build_set_access_params(qml_runner=qml_runner)
 
         try:
             market_data_set_id = self.market_api.create_set(params=params)
@@ -210,6 +224,7 @@ class BaseRunner:
         market_data_qml: str | None = None,
     ) -> None:
         set_id = self.require_non_empty_str(set_id, "set_id")
+        resolved_params = self.merge_set_access_params(params=params)
         if market_data_id is not None or market_data_qml is not None:
             market_data_id = self.require_non_empty_str(market_data_id, "market_data_id")
             market_data_qml = self.require_non_empty_str(market_data_qml, "market_data_qml")
@@ -223,7 +238,7 @@ class BaseRunner:
                 set_id=set_id,
                 market_data_id=market_data_id,
                 market_data_qml=market_data_qml,
-                params=params,
+                params=resolved_params,
             )
             return
 
@@ -242,7 +257,7 @@ class BaseRunner:
                 set_id=set_id,
                 market_data_id=str(market_data_id),
                 market_data_qml=str(market_data_qml),
-                params=params,
+                params=resolved_params,
             )
 
     def add_trade_qml(
@@ -256,6 +271,7 @@ class BaseRunner:
     ) -> None:
         set_id = self.require_non_empty_str(set_id, "set_id")
         trade_id = self.require_non_empty_str(trade_id, "trade_id")
+        resolved_params = self.merge_set_access_params(params=params)
 
         log_info(
             self.logger,
@@ -268,7 +284,7 @@ class BaseRunner:
             trade_id=trade_id,
             product_qml=product_qml,
             pricing_parameters_qml=pricing_params_qml,
-            params=params,
+            params=resolved_params,
         )
 
     def add_request_qml(
@@ -417,7 +433,10 @@ class BaseRunner:
     async def dump_ot_mkt_data_qmls(self, set_id: str) -> str:
         set_id = self.require_non_empty_str(set_id, "set_id")
         try:
-            qmls = await self.market_api.get_ot_mkt_data_qmls_async(set_id=set_id)
+            qmls = await self.market_api.get_ot_mkt_data_qmls_async(
+                set_id=set_id,
+                params=self.build_set_access_params(),
+            )
         except Exception as exc:
             raise PricingComputationError("Failed to retrieve OT market data qmls.") from exc
         return self.dump_service.dump_ot_market_data(qmls=qmls)
@@ -432,7 +451,11 @@ class BaseRunner:
 
     def get_fx_tree(self, mkt_data_set_id: str, mkt_data_id: str) -> dict[str, Any]:
         try:
-            qml = self.market_api.get_mkt_data_content(set_id=mkt_data_set_id, key=mkt_data_id)
+            qml = self.market_api.get_mkt_data_content(
+                set_id=mkt_data_set_id,
+                key=mkt_data_id,
+                params=self.build_set_access_params(),
+            )
             return self.qml_handler.get_fx_tree(qml=qml)
         except Exception as exc:
             raise ResultParsingError("Failed to build FX tree from market data.") from exc

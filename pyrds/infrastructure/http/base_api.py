@@ -493,3 +493,20 @@ class BaseAPI:
     @property
     def base_url(self) -> str:
         return self._base_url
+
+    @property
+    def default_scope(self) -> str:
+        return self._settings.scope
+
+    @property
+    def default_collection(self) -> str:
+        return self._settings.collection
+
+    def build_set_access_params(self, *, qml_runner: str | None = None) -> dict[str, str]:
+        params = {
+            "scope": self.default_scope,
+            "collection": self.default_collection,
+        }
+        if qml_runner:
+            params["qmlRunner"] = qml_runner
+        return params

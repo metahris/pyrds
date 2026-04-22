@@ -42,6 +42,11 @@ class FilesPath(BaseModel):
 
     @computed_field
     @property
+    def logs(self) -> str:
+        return str(Path(self.working_dir) / "logs")
+
+    @computed_field
+    @property
     def qml_updater(self) -> str:
         if self.xml_updater_path:
             return self.xml_updater_path

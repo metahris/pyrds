@@ -137,6 +137,43 @@ class BaseRunner:
         except Exception as exc:
             raise PricingComputationError(f"Asynchronous pricing failed: {exc}") from exc
 
+    async def _compute_async_by_key(
+        self,
+        priceable_by_key: Mapping[str, dict[str, Any]],
+        *,
+        fail_on_any_error: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        normalized = {
+            str(key): clear_null_values(body)
+            for key, body in priceable_by_key.items()
+        }
+
+        try:
+            return await self.ps_api.price_async_by_key(
+                priceable_by_key=normalized,
+                fail_on_any_error=fail_on_any_error,
+            )
+        except (APIError, RequestTimeoutError, TransportError, BatchRequestError):
+            raise
+        except Exception as exc:
+            raise PricingComputationError(f"Asynchronous keyed pricing failed: {exc}") from exc
+
+    async def _compute_async_by_key_detailed(
+        self,
+        priceable_by_key: Mapping[str, dict[str, Any]],
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, Exception]]:
+        normalized = {
+            str(key): clear_null_values(body)
+            for key, body in priceable_by_key.items()
+        }
+
+        try:
+            return await self.ps_api.price_async_by_key_detailed(priceable_by_key=normalized)
+        except (APIError, RequestTimeoutError, TransportError, BatchRequestError):
+            raise
+        except Exception as exc:
+            raise PricingComputationError(f"Asynchronous keyed pricing failed: {exc}") from exc
+
     def create_full_qml_sets(self, *, qml_runner: str) -> dict[str, str]:
         qml_runner = self.require_non_empty_str(qml_runner, "qml_runner")
         params = {"qmlRunner": qml_runner}
@@ -438,6 +475,23 @@ class BaseRunner:
         *,
         fail_on_any_error: bool = True,
     ) -> dict[str, Any]:
+        output, failures = await self.gather_dict_detailed(tasks_by_key)
+
+        if failures and fail_on_any_error:
+            raise BatchRequestError(
+                f"{len(failures)} task(s) failed out of {len(output) + len(failures)}.",
+                failures=failures,
+            )
+
+        if failures:
+            log_error(self.logger, "Batch async execution had failures", failures=list(failures.keys()))
+
+        return output
+
+    async def gather_dict_detailed(
+        self,
+        tasks_by_key: Mapping[str, asyncio.Future],
+    ) -> tuple[dict[str, Any], dict[str, Exception]]:
         keys = list(tasks_by_key.keys())
         self.ensure_unique(keys, "task keys")
         results = await asyncio.gather(*tasks_by_key.values(), return_exceptions=True)
@@ -451,13 +505,4 @@ class BaseRunner:
             else:
                 output[key] = result
 
-        if failures and fail_on_any_error:
-            raise BatchRequestError(
-                f"{len(failures)} task(s) failed out of {len(keys)}.",
-                failures=failures,
-            )
-
-        if failures:
-            log_error(self.logger, "Batch async execution had failures", failures=list(failures.keys()))
-
-        return output
+        return output, failures

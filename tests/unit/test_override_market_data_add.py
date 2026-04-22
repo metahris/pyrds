@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -27,8 +28,10 @@ class FakeMarketApi:
 
 
 class FakePricingApi:
-    def __init__(self) -> None:
+    def __init__(self, *, failed_keys: list[str] | None = None) -> None:
         self.bodies: list[dict] = []
+        self.async_batches: list[list[str]] = []
+        self.failed_keys = set(failed_keys or [])
 
     def price(self, *, body):
         self.bodies.append(body)
@@ -45,10 +48,54 @@ class FakePricingApi:
             ]
         }
 
+    async def price_async_by_key(self, *, priceable_by_key, fail_on_any_error=False):
+        self.async_batches.append(list(priceable_by_key.keys()))
+        return {
+            key: {
+                "responses": [
+                    {
+                        "psRequestKey": key,
+                        "tradeId": "trade_1",
+                        "rawResults": [PRICE_RESULT_QML],
+                        "errors": [],
+                        "marketDataSetIds": ["mkt_base"],
+                        "tradeSetId": "trade_base",
+                    }
+                ]
+            }
+            for key in priceable_by_key
+        }
+
+    async def price_async_by_key_detailed(self, *, priceable_by_key):
+        self.async_batches.append(list(priceable_by_key.keys()))
+        responses = {
+            key: {
+                "responses": [
+                    {
+                        "psRequestKey": key,
+                        "tradeId": "trade_1",
+                        "rawResults": [PRICE_RESULT_QML],
+                        "errors": [],
+                        "marketDataSetIds": ["mkt_base"],
+                        "tradeSetId": "trade_base",
+                    }
+                ]
+            }
+            for key in priceable_by_key
+            if key not in self.failed_keys
+        }
+        failures = {
+            key: RuntimeError(f"{key} failed")
+            for key in priceable_by_key
+            if key in self.failed_keys
+        }
+        return responses, failures
+
 
 class FakeTradesApi:
     def __init__(self) -> None:
         self.added: list[tuple[str, str, str, str]] = []
+        self.async_batches: list[list[str]] = []
 
     def create_set(self, params=None) -> str:
         return "trade_new"
@@ -73,6 +120,12 @@ class FakeTradesApi:
 
     def add_qml(self, *, set_id, trade_id, product_qml, pricing_parameters_qml, params=None) -> None:
         self.added.append((set_id, trade_id, product_qml, pricing_parameters_qml))
+
+    async def add_specific_trade_content_async(self, *, set_id, trade_qmls, params=None, fail_on_any_error=True):
+        self.async_batches.append(list(trade_qmls.keys()))
+        for trade_id, qmls in trade_qmls.items():
+            self.added.append((set_id, trade_id, qmls["product"], qmls["pricingparams"]))
+        return {trade_id: {"status": "ok"} for trade_id in trade_qmls}
 
 
 def _runner(tmp_path: Path, logger, market_api=None, ps_api=None) -> OverrideQmlRunner:
@@ -134,6 +187,112 @@ def test_override_ot_adds_market_data_set_next_to_base_ot_set(tmp_path: Path, lo
     assert logger.contains("static_data|BASE")
     assert logger.contains("Adding market data QML to set")
     assert logger.contains("Finished OT override scenario")
+
+
+def test_compute_override_ot_batches_scenario_pricing_after_base_request(tmp_path: Path, logger) -> None:
+    ps_api = FakePricingApi()
+    runner = _runner(tmp_path, logger, ps_api=ps_api)
+    override_plan = {
+        "scenarios": [
+            {
+                "scenario_id": "scenario_one",
+                "overrides": [
+                    {
+                        "name": "add_static_data_one",
+                        "target_type": "marketdata",
+                        "operation": "add_file",
+                        "target_id": "static_data|BASE",
+                        "source": {"inline_xml": "<staticData><value>1</value></staticData>"},
+                    }
+                ],
+            },
+            {
+                "scenario_id": "scenario_two",
+                "overrides": [
+                    {
+                        "name": "add_static_data_two",
+                        "target_type": "marketdata",
+                        "operation": "add_file",
+                        "target_id": "static_data|STRESS",
+                        "source": {"inline_xml": "<staticData><value>2</value></staticData>"},
+                    }
+                ],
+            },
+        ]
+    }
+
+    result = asyncio.run(
+        runner.compute_override_ot_async(
+            ps_request=_ps_request(),
+            override_plan=override_plan,
+            use_cache_factory=UseCache,
+            dump=False,
+            dump_excel=False,
+        )
+    )
+
+    assert list(result) == ["base_request", "scenario_one", "scenario_two"]
+    assert len(ps_api.bodies) == 1
+    assert ps_api.async_batches == [["scenario_one", "scenario_two"]]
+    assert logger.contains("Submitting OT override scenario batch pricing request")
+    assert logger.contains("Prepared OT override scenario pricing request")
+
+
+def test_compute_override_ot_writes_manifest_for_partial_failures(tmp_path: Path, logger) -> None:
+    ps_api = FakePricingApi(failed_keys=["scenario_two"])
+    runner = _runner(tmp_path, logger, ps_api=ps_api)
+    override_plan = {
+        "scenarios": [
+            {
+                "scenario_id": "scenario_one",
+                "overrides": [
+                    {
+                        "name": "add_static_data_one",
+                        "target_type": "marketdata",
+                        "operation": "add_file",
+                        "target_id": "static_data|BASE",
+                        "source": {"inline_xml": "<staticData><value>1</value></staticData>"},
+                    }
+                ],
+            },
+            {
+                "scenario_id": "scenario_two",
+                "overrides": [
+                    {
+                        "name": "add_static_data_two",
+                        "target_type": "marketdata",
+                        "operation": "add_file",
+                        "target_id": "static_data|STRESS",
+                        "source": {"inline_xml": "<staticData><value>2</value></staticData>"},
+                    }
+                ],
+            },
+        ]
+    }
+
+    result = asyncio.run(
+        runner.compute_override_ot_async(
+            ps_request=_ps_request(),
+            override_plan=override_plan,
+            use_cache_factory=UseCache,
+            dump=True,
+            dump_excel=False,
+        )
+    )
+
+    manifest_files = list(Path(runner.files_path.logs).glob("override_ot_manifest_*.json"))
+    assert len(manifest_files) == 1
+
+    manifest = json.loads(manifest_files[0].read_text(encoding="utf-8"))
+
+    assert result["scenario_two"]["status"] == "failed"
+    assert manifest["status"] == "partial_failure"
+    assert manifest["base_request"]["status"] == "succeeded"
+    assert manifest["base_request"]["raw_result_file"].endswith(".xml")
+    assert manifest["scenarios"]["scenario_one"]["status"] == "succeeded"
+    assert manifest["scenarios"]["scenario_one"]["raw_result_file"].endswith(".xml")
+    assert manifest["scenarios"]["scenario_two"]["status"] == "failed"
+    assert "RuntimeError: scenario_two failed" in manifest["scenarios"]["scenario_two"]["error"]
 
 
 async def async_run_ot_scenario(runner: OverrideQmlRunner, scenario: OverrideScenario):
@@ -225,8 +384,9 @@ def test_pricingparams_override_allows_empty_or_missing_trade_pricingparams(tmp_
     assert added_by_trade["trade_empty"] == ""
     assert added_by_trade["trade_missing"] == ""
     assert "<method>NEW</method>" in added_by_trade["trade_full"]
+    assert trades_api.async_batches == [["trade_empty", "trade_missing", "trade_full"]]
     assert logger.contains("Applying trade override")
     assert logger.contains("Skipping empty pricing params override")
     assert logger.contains("trade_empty")
     assert logger.contains("trade_missing")
-    assert logger.contains("Adding trade QML to set")
+    assert logger.contains("Uploading overridden trades asynchronously")

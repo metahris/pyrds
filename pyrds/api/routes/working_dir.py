@@ -32,6 +32,7 @@ def create_pyrds_working_dir(
         data=files_path.data,
         trade=files_path.trade,
         results=files_path.results,
+        logs=files_path.logs,
         qml_updater=files_path.qml_updater,
         created=created,
     )

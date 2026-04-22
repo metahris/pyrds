@@ -5,6 +5,8 @@
     "gridPricerTechnicalDetails": {
       "cartography": "FRTB_BOCOLLAT",
       "analyseName": "MCR_BACK_PRICE_D1",
+      "clientRequestKey": "some_key",
+      "utCode": "some_ot",
       "directQmlRunnerCall": true,
       "qmlRunner": "QMLRPREGRPC",
       "foCluster": "OTRPLI1",

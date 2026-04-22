@@ -7,9 +7,7 @@ from pyrds.infrastructure.config.settings import FilesPath, Settings
 
 
 def resolve_working_dir(settings: Settings, name: str) -> FilesPath:
-    root = _configured_root(settings)
-    safe_name = _safe_dir_name(name)
-    working_dir = root / safe_name
+    working_dir = build_working_dir_path(settings=settings, name=name)
     if not working_dir.exists():
         raise QmlInputNotFoundError(
             f"Working directory does not exist: {working_dir}. "
@@ -25,10 +23,8 @@ def resolve_working_dir(settings: Settings, name: str) -> FilesPath:
 
 
 def create_working_dir(settings: Settings, name: str) -> tuple[FilesPath, list[str]]:
-    root = _configured_root(settings)
-    safe_name = _safe_dir_name(name)
     files_path = FilesPath(
-        working_dir=str(root / safe_name),
+        working_dir=str(build_working_dir_path(settings=settings, name=name)),
         xml_updater_path=settings.pyrds_api.xml_updater_path or None,
     )
     paths = [
@@ -37,6 +33,7 @@ def create_working_dir(settings: Settings, name: str) -> tuple[FilesPath, list[s
         files_path.data,
         files_path.trade,
         files_path.results,
+        files_path.logs,
         files_path.qml_updater,
     ]
 
@@ -49,6 +46,12 @@ def create_working_dir(settings: Settings, name: str) -> tuple[FilesPath, list[s
             created.append(str(folder))
 
     return files_path, created
+
+
+def build_working_dir_path(settings: Settings, name: str) -> Path:
+    root = _configured_root(settings)
+    safe_name = _safe_dir_name(name)
+    return root / safe_name
 
 
 def _configured_root(settings: Settings) -> Path:

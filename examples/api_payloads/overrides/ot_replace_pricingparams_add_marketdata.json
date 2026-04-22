@@ -11,6 +11,8 @@
     "gridPricerTechnicalDetails": {
       "cartography": "FRTB_BOCOLLAT",
       "analyseName": "MCR_MTM",
+      "clientRequestKey": "some_key",
+      "utCode": "some_ot",
       "directQmlRunnerCall": true,
       "qmlRunner": "QMLRPREGRPC",
       "foCluster": "OTRPLI1",

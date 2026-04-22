@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import Any, Mapping
 
 from pyrds.domain.exceptions import UnexpectedResponseError
 from pyrds.infrastructure.config.settings import ApiClientSettings
@@ -72,6 +72,36 @@ class PsApi(BaseAPI):
         for key, cleaned in zip(keys, normalized_payloads):
             tasks_by_key[key] = asyncio.create_task(self._price_one_async(cleaned, endpoint))
         return await self.gather_dict(tasks_by_key, fail_on_any_error=fail_on_any_error)
+
+    async def price_async_by_key(
+        self,
+        priceable_by_key: Mapping[str, dict[str, Any]],
+        endpoint: str = "price",
+        *,
+        fail_on_any_error: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        keys = [str(key) for key in priceable_by_key.keys()]
+        self.ensure_unique_keys(keys)
+
+        tasks_by_key: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        for key, body in priceable_by_key.items():
+            cleaned = clear_null_values(body)
+            tasks_by_key[str(key)] = asyncio.create_task(self._price_one_async(cleaned, endpoint))
+        return await self.gather_dict(tasks_by_key, fail_on_any_error=fail_on_any_error)
+
+    async def price_async_by_key_detailed(
+        self,
+        priceable_by_key: Mapping[str, dict[str, Any]],
+        endpoint: str = "price",
+    ) -> tuple[dict[str, dict[str, Any]], dict[str, Exception]]:
+        keys = [str(key) for key in priceable_by_key.keys()]
+        self.ensure_unique_keys(keys)
+
+        tasks_by_key: dict[str, asyncio.Future[dict[str, Any]]] = {}
+        for key, body in priceable_by_key.items():
+            cleaned = clear_null_values(body)
+            tasks_by_key[str(key)] = asyncio.create_task(self._price_one_async(cleaned, endpoint))
+        return await self.gather_dict_detailed(tasks_by_key)
 
     async def _price_one_async(self, body: dict[str, Any], endpoint: str) -> dict[str, Any]:
         response = await self._post_async(endpoint=endpoint, json=body, allow_retry=False)

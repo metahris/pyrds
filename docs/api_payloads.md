@@ -143,6 +143,7 @@ Generic/API-ready examples:
 
 - `examples/api_payloads/create_working_dir.json`
 - `examples/api_payloads/generic_ot_id.json`
+- `examples/api_payloads/generic_existing_set_ids.json`
 - `examples/api_payloads/generic_full_qml.json`
 - `examples/api_payloads/generic_option_ny_mtm.json`
 - `examples/api_payloads/generic_sne_mtm_custom.json`
@@ -159,3 +160,50 @@ Generic/API-ready examples:
 - `examples/api_payloads/overrides/`
 
 Detailed override documentation is in `docs/overrides.md`.
+
+## Existing Set IDs
+
+If a user already has remote set ids, use:
+
+```text
+POST /computing/generic/ot
+```
+
+with a payload like:
+
+```json
+{
+  "dir": "working_dir",
+  "ps_request": {
+    "valuationDate": "2024/06/26 23:59:59",
+    "marketDataSetIds": [
+      "mkt_set_123456"
+    ],
+    "tradeSetId": "trade_set_789012",
+    "requestDataSetId": "request_set_345678",
+    "gridPricerTechnicalDetails": {
+      "cartography": "FRTB_BOCOLLAT",
+      "analyseName": "MCR_MTM",
+      "directQmlRunnerCall": true,
+      "qmlRunner": "QMLRPREGRPC",
+      "foCluster": "OTRPLI1",
+      "qlibVersion": "GMDPRS_PS_LATEST",
+      "psOutputType": "RAW",
+      "outputCurrency": "USD",
+      "subtaskPolicy": "AlwaysDistribute"
+    },
+    "lagInDaysForBackprice": 0
+  }
+}
+
+```
+
+See:
+
+```text
+examples/api_payloads/generic_existing_set_ids.json
+```
+
+Use this with `/computing/generic/ot`, because `/computing/generic/full-qml` creates fresh market data, trade, and request sets from local QML files and overwrites those ids.
+
+For this direct-set-id payload, the top-level `marketDataSetIds`, `tradeSetId`, and `requestDataSetId` are the important fields. A `useCache` block is not required here.

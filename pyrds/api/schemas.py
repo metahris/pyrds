@@ -20,6 +20,7 @@ class WorkingDirResponse(BaseModel):
     data: str
     trade: str
     results: str
+    logs: str
     qml_updater: str
     created: list[str]
 

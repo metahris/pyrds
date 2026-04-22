@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json
+from datetime import datetime
 from pathlib import Path
 from os.path import join
 from typing import Any
@@ -52,6 +54,12 @@ class OverrideQmlRunner(BaseRunner):
             ps_request.gridPricerTechnicalDetails.qmlRunner,
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
+        manifest_path, manifest = self._init_override_manifest(
+            run_type="override_ot",
+            plan=plan,
+            dump=dump,
+            dump_excel=dump_excel,
+        )
 
         log_info(self.logger, "Started OT override pricing", qml_runner=qml_runner)
         log_info(
@@ -61,29 +69,108 @@ class OverrideQmlRunner(BaseRunner):
             scenario_ids=[scenario.scenario_id for scenario in plan.scenarios],
             override_counts={scenario.scenario_id: len(scenario.overrides) for scenario in plan.scenarios},
         )
-
-        base_response = self._compute(body=self.model_to_payload(ps_request))
-        base_summary = self._build_summary(response=base_response)
-        base_trade_set_id = self.get_trade_set_id_from_response(base_response)
-        base_market_data_set_id = self.get_mkt_data_set_id_from_response(base_response)
-
-        results: dict[str, dict[str, Any]] = {"base_request": base_summary}
-        for scenario in plan.scenarios:
-            results[scenario.scenario_id] = await self._run_ot_scenario(
-                scenario=scenario,
-                ps_request=ps_request,
-                qml_runner=qml_runner,
-                base_trade_set_id=base_trade_set_id,
-                base_market_data_set_id=base_market_data_set_id,
-                use_cache_factory=use_cache_factory,
+        try:
+            self._set_manifest_entry(manifest_path, manifest, "base_request", status="running")
+            base_response = self._compute(body=self.model_to_payload(ps_request))
+            base_summary = self._build_summary(response=base_response)
+            base_raw_result_file = self._attach_raw_result_file(
+                label="base_request",
+                summary=base_summary,
                 dump=dump,
             )
+            self._set_manifest_entry(
+                manifest_path,
+                manifest,
+                "base_request",
+                status="succeeded",
+                raw_result_file=base_raw_result_file,
+            )
+            base_trade_set_id = self.get_trade_set_id_from_response(base_response)
+            base_market_data_set_id = self.get_mkt_data_set_id_from_response(base_response)
 
-        if dump_excel:
-            self._dump_summary_excel(results, prefix="override_ot_summary")
+            results: dict[str, dict[str, Any]] = {"base_request": base_summary}
+            scenario_requests: dict[str, dict[str, Any]] = {}
+            for scenario in plan.scenarios:
+                self._set_manifest_entry(manifest_path, manifest, scenario.scenario_id, status="preparing")
+                try:
+                    scenario_request = await self._prepare_ot_scenario_request(
+                        scenario=scenario,
+                        ps_request=ps_request,
+                        qml_runner=qml_runner,
+                        base_trade_set_id=base_trade_set_id,
+                        base_market_data_set_id=base_market_data_set_id,
+                        use_cache_factory=use_cache_factory,
+                    )
+                except Exception as exc:
+                    failure = self._build_failure_result(exc)
+                    results[scenario.scenario_id] = failure
+                    self._set_manifest_entry(
+                        manifest_path,
+                        manifest,
+                        scenario.scenario_id,
+                        status="failed",
+                        error=failure["error"],
+                    )
+                    continue
 
-        log_info(self.logger, "Finished OT override pricing", qml_runner=qml_runner)
-        return results
+                scenario_requests[scenario.scenario_id] = self.model_to_payload(scenario_request)
+                self._set_manifest_entry(manifest_path, manifest, scenario.scenario_id, status="prepared")
+
+            if scenario_requests:
+                log_info(
+                    self.logger,
+                    "Submitting OT override scenario batch pricing request",
+                    qml_runner=qml_runner,
+                    scenario_ids=list(scenario_requests.keys()),
+                )
+                responses, failures = await self._compute_async_by_key_detailed(priceable_by_key=scenario_requests)
+                if failures:
+                    log_warning(
+                        self.logger,
+                        "OT override scenario batch had failures",
+                        qml_runner=qml_runner,
+                        failures={key: str(value) for key, value in failures.items()},
+                    )
+
+                for scenario in plan.scenarios:
+                    if scenario.scenario_id in responses:
+                        results[scenario.scenario_id] = self._finalize_ot_scenario_result(
+                            scenario=scenario,
+                            response=responses[scenario.scenario_id],
+                            dump=dump,
+                            manifest_path=manifest_path,
+                            manifest=manifest,
+                        )
+                    elif scenario.scenario_id in failures:
+                        failure = self._build_failure_result(failures[scenario.scenario_id])
+                        results[scenario.scenario_id] = failure
+                        self._set_manifest_entry(
+                            manifest_path,
+                            manifest,
+                            scenario.scenario_id,
+                            status="failed",
+                            error=failure["error"],
+                        )
+
+            if dump_excel:
+                excel_path = self._dump_summary_excel(results, prefix="override_ot_summary")
+                manifest["summary_excel_file"] = excel_path
+                self._write_override_manifest(manifest_path, manifest)
+
+            manifest["status"] = self._derive_manifest_status(manifest)
+            self._write_override_manifest(manifest_path, manifest)
+            log_info(
+                self.logger,
+                "Finished OT override pricing",
+                qml_runner=qml_runner,
+                manifest_path=manifest_path,
+            )
+            return results
+        except Exception as exc:
+            manifest["status"] = self._derive_manifest_status(manifest, fallback="failed")
+            manifest["error"] = str(exc)
+            self._write_override_manifest(manifest_path, manifest)
+            raise
 
     async def compute_override_full_qml_async(
         self,
@@ -99,6 +186,12 @@ class OverrideQmlRunner(BaseRunner):
             ps_request.gridPricerTechnicalDetails.qmlRunner,
             "ps_request.gridPricerTechnicalDetails.qmlRunner",
         )
+        manifest_path, manifest = self._init_override_manifest(
+            run_type="override_full_qml",
+            plan=plan,
+            dump=dump,
+            dump_excel=dump_excel,
+        )
 
         log_info(self.logger, "Started full QML override pricing", qml_runner=qml_runner)
         log_info(
@@ -108,22 +201,50 @@ class OverrideQmlRunner(BaseRunner):
             scenario_ids=[scenario.scenario_id for scenario in plan.scenarios],
             override_counts={scenario.scenario_id: len(scenario.overrides) for scenario in plan.scenarios},
         )
+        try:
+            results: dict[str, dict[str, Any]] = {}
+            for scenario in plan.scenarios:
+                self._set_manifest_entry(manifest_path, manifest, scenario.scenario_id, status="running")
+                try:
+                    results[scenario.scenario_id] = await self._run_full_qml_scenario(
+                        scenario=scenario,
+                        ps_request=ps_request,
+                        qml_runner=qml_runner,
+                        use_cache_factory=use_cache_factory,
+                        dump=dump,
+                        manifest_path=manifest_path,
+                        manifest=manifest,
+                    )
+                except Exception as exc:
+                    failure = self._build_failure_result(exc)
+                    results[scenario.scenario_id] = failure
+                    self._set_manifest_entry(
+                        manifest_path,
+                        manifest,
+                        scenario.scenario_id,
+                        status="failed",
+                        error=failure["error"],
+                    )
 
-        results: dict[str, dict[str, Any]] = {}
-        for scenario in plan.scenarios:
-            results[scenario.scenario_id] = await self._run_full_qml_scenario(
-                scenario=scenario,
-                ps_request=ps_request,
+            if dump_excel:
+                excel_path = self._dump_summary_excel(results, prefix="override_full_qml_summary")
+                manifest["summary_excel_file"] = excel_path
+                self._write_override_manifest(manifest_path, manifest)
+
+            manifest["status"] = self._derive_manifest_status(manifest)
+            self._write_override_manifest(manifest_path, manifest)
+            log_info(
+                self.logger,
+                "Finished full QML override pricing",
                 qml_runner=qml_runner,
-                use_cache_factory=use_cache_factory,
-                dump=dump,
+                manifest_path=manifest_path,
             )
-
-        if dump_excel:
-            self._dump_summary_excel(results, prefix="override_full_qml_summary")
-
-        log_info(self.logger, "Finished full QML override pricing", qml_runner=qml_runner)
-        return results
+            return results
+        except Exception as exc:
+            manifest["status"] = self._derive_manifest_status(manifest, fallback="failed")
+            manifest["error"] = str(exc)
+            self._write_override_manifest(manifest_path, manifest)
+            raise
 
     async def _run_ot_scenario(
         self,
@@ -135,7 +256,45 @@ class OverrideQmlRunner(BaseRunner):
         base_market_data_set_id: str,
         use_cache_factory: Any,
         dump: bool,
+        manifest_path: str | None = None,
+        manifest: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        scenario_request = await self._prepare_ot_scenario_request(
+            scenario=scenario,
+            ps_request=ps_request,
+            qml_runner=qml_runner,
+            base_trade_set_id=base_trade_set_id,
+            base_market_data_set_id=base_market_data_set_id,
+            use_cache_factory=use_cache_factory,
+        )
+        log_info(
+            self.logger,
+            "Submitting OT override scenario pricing request",
+            scenario_id=scenario.scenario_id,
+            market_data_set_id=scenario_request.marketDataSetIds,
+            trade_set_id=scenario_request.tradeSetId,
+            request_set_id=scenario_request.requestDataSetId,
+        )
+
+        response = self._compute(body=self.model_to_payload(scenario_request))
+        return self._finalize_ot_scenario_result(
+            scenario=scenario,
+            response=response,
+            dump=dump,
+            manifest_path=manifest_path or "",
+            manifest=manifest or {"scenarios": {scenario.scenario_id: {}}},
+        )
+
+    async def _prepare_ot_scenario_request(
+        self,
+        *,
+        scenario: OverrideScenario,
+        ps_request: PsRequest,
+        qml_runner: str,
+        base_trade_set_id: str,
+        base_market_data_set_id: str,
+        use_cache_factory: Any,
+    ) -> PsRequest:
         market_data_set_id: str | list[str] = base_market_data_set_id
         trade_set_id = base_trade_set_id
         request_set_id: str | None = None
@@ -210,20 +369,36 @@ class OverrideQmlRunner(BaseRunner):
         )
         log_info(
             self.logger,
-            "Submitting OT override scenario pricing request",
+            "Prepared OT override scenario pricing request",
             scenario_id=scenario.scenario_id,
             market_data_set_id=market_data_set_id,
             trade_set_id=trade_set_id,
             request_set_id=request_set_id,
         )
+        return scenario_request
 
-        response = self._compute(body=self.model_to_payload(scenario_request))
+    def _finalize_ot_scenario_result(
+        self,
+        *,
+        scenario: OverrideScenario,
+        response: dict[str, Any],
+        dump: bool,
+        manifest_path: str,
+        manifest: dict[str, Any],
+    ) -> dict[str, Any]:
         summary = self._build_summary(response=response)
-
-        if dump:
-            self._dump_scenario_raw_result(
-                scenario_id=scenario.scenario_id,
-                raw_data=summary["raw_data"],
+        raw_result_file = self._attach_raw_result_file(
+            label=scenario.scenario_id,
+            summary=summary,
+            dump=dump,
+        )
+        if manifest_path:
+            self._set_manifest_entry(
+                manifest_path,
+                manifest,
+                scenario.scenario_id,
+                status="succeeded",
+                raw_result_file=raw_result_file,
             )
 
         log_info(
@@ -245,6 +420,8 @@ class OverrideQmlRunner(BaseRunner):
         qml_runner: str,
         use_cache_factory: Any,
         dump: bool,
+        manifest_path: str,
+        manifest: dict[str, Any],
     ) -> dict[str, Any]:
         params = {"qmlRunner": qml_runner}
         set_ids = self.create_full_qml_sets(qml_runner=qml_runner)
@@ -334,12 +511,18 @@ class OverrideQmlRunner(BaseRunner):
 
         response = self._compute(body=self.model_to_payload(scenario_request))
         summary = self._build_summary(response=response)
-
-        if dump:
-            self._dump_scenario_raw_result(
-                scenario_id=scenario.scenario_id,
-                raw_data=summary["raw_data"],
-            )
+        raw_result_file = self._attach_raw_result_file(
+            label=scenario.scenario_id,
+            summary=summary,
+            dump=dump,
+        )
+        self._set_manifest_entry(
+            manifest_path,
+            manifest,
+            scenario.scenario_id,
+            status="succeeded",
+            raw_result_file=raw_result_file,
+        )
 
         log_info(
             self.logger,
@@ -512,15 +695,20 @@ class OverrideQmlRunner(BaseRunner):
             new_set_id=new_set_id,
             trade_ids=list(trade_qmls.keys()),
         )
-
-        for trade_id, qmls in trade_qmls.items():
-            self.add_trade_qml(
-                set_id=new_set_id,
-                trade_id=trade_id,
-                product_qml=qmls["product"],
-                pricing_params_qml=qmls["pricingparams"],
-                params=params,
-            )
+        log_info(
+            self.logger,
+            "Uploading overridden trades asynchronously",
+            scenario_id=scenario.scenario_id,
+            new_set_id=new_set_id,
+            trade_count=len(trade_qmls),
+            concurrency=getattr(self.trades_api, "_async_concurrency", 100),
+        )
+        await self.trades_api.add_specific_trade_content_async(
+            set_id=new_set_id,
+            trade_qmls=trade_qmls,
+            params=params,
+            fail_on_any_error=True,
+        )
 
         return new_set_id
 
@@ -593,6 +781,107 @@ class OverrideQmlRunner(BaseRunner):
         except Exception as exc:
             raise DumpError(f"Failed to write summary excel to {dump_path}") from exc
         return dump_path
+
+    def _manifest_file_name(self, *, run_type: str) -> str:
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        return f"{run_type}_manifest_{timestamp}.json"
+
+    def _init_override_manifest(
+        self,
+        *,
+        run_type: str,
+        plan: OverridePlan,
+        dump: bool,
+        dump_excel: bool,
+    ) -> tuple[str, dict[str, Any]]:
+        Path(self.files_path.logs).mkdir(parents=True, exist_ok=True)
+        manifest_path = join(self.files_path.logs, self._manifest_file_name(run_type=run_type))
+        manifest = {
+            "run_type": run_type,
+            "status": "running",
+            "dump": dump,
+            "dump_excel": dump_excel,
+            "base_request": {"status": "pending"} if run_type == "override_ot" else None,
+            "scenarios": {
+                scenario.scenario_id: {"status": "pending"}
+                for scenario in plan.scenarios
+            },
+        }
+        self._write_override_manifest(manifest_path, manifest)
+        log_info(self.logger, "Override manifest initialized", manifest_path=manifest_path, run_type=run_type)
+        return manifest_path, manifest
+
+    def _write_override_manifest(self, manifest_path: str, manifest: dict[str, Any]) -> None:
+        try:
+            with open(manifest_path, "w", encoding="utf-8") as file_handle:
+                json.dump(manifest, file_handle, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            raise DumpError(f"Failed to write override manifest to {manifest_path}") from exc
+
+    def _set_manifest_entry(
+        self,
+        manifest_path: str,
+        manifest: dict[str, Any],
+        entry_name: str,
+        *,
+        status: str,
+        raw_result_file: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        if entry_name == "base_request":
+            entry = manifest.setdefault("base_request", {})
+        else:
+            entry = manifest.setdefault("scenarios", {}).setdefault(entry_name, {})
+
+        entry["status"] = status
+        if raw_result_file is not None:
+            entry["raw_result_file"] = raw_result_file
+        if error is not None:
+            entry["error"] = error
+
+        self._write_override_manifest(manifest_path, manifest)
+
+    def _attach_raw_result_file(
+        self,
+        *,
+        label: str,
+        summary: dict[str, Any],
+        dump: bool,
+    ) -> str | None:
+        if not dump:
+            return None
+
+        raw_result_file = self._dump_scenario_raw_result(
+            scenario_id=label,
+            raw_data=summary["raw_data"],
+        )
+        summary["raw_result_file"] = raw_result_file
+        return raw_result_file
+
+    @staticmethod
+    def _build_failure_result(exc: Exception) -> dict[str, Any]:
+        return {
+            "status": "failed",
+            "error": f"{exc.__class__.__name__}: {exc}",
+        }
+
+    @staticmethod
+    def _derive_manifest_status(manifest: dict[str, Any], *, fallback: str = "completed") -> str:
+        entries: list[dict[str, Any]] = list(manifest.get("scenarios", {}).values())
+        base_request = manifest.get("base_request")
+        if isinstance(base_request, dict):
+            entries.append(base_request)
+
+        statuses = [entry.get("status") for entry in entries if isinstance(entry, dict)]
+        if not statuses:
+            return fallback
+        if all(status == "succeeded" for status in statuses):
+            return "completed"
+        if any(status == "succeeded" for status in statuses):
+            return "partial_failure"
+        if any(status in {"failed", "running", "prepared", "preparing"} for status in statuses):
+            return fallback
+        return fallback
 
     @staticmethod
     def _normalize_plan(plan: OverridePlan | dict[str, Any]) -> OverridePlan:

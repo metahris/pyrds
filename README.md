@@ -45,6 +45,7 @@ working_dir/
 ├── inputs/
 │   ├── data/
 │   └── trade/
+├── logs/
 ├── results/
 └── qml_updater/
 ```
@@ -129,6 +130,37 @@ filename_pricingsetup.xml -> filename_BASE.xml
 ```
 
 The pricing service expects these market data keys to resolve as `filename|BASE`.
+
+If you already have remote set ids and want to price directly from them, use:
+
+```text
+POST /computing/generic/ot
+```
+
+with:
+
+```text
+examples/api_payloads/generic_existing_set_ids.json
+```
+
+That payload sends `marketDataSetIds`, `tradeSetId`, and `requestDataSetId` directly in `ps_request`.
+
+Do not use this pattern with:
+
+```text
+POST /computing/generic/full-qml
+```
+
+because the full-QML runner creates fresh sets from local QML files and overwrites set ids.
+
+Example payloads that define `ps_request.gridPricerTechnicalDetails` also include:
+
+```json
+"clientRequestKey": "some_key",
+"utCode": "some_ot"
+```
+
+Use those fields when the upstream pricing service needs request tracking metadata.
 
 ## Backtest Files
 
@@ -266,9 +298,98 @@ Typical result names:
 ```text
 result_<timestamp>.xml
 HISTO_20240102_backtest_<timestamp>.xml
+base_request_result_<timestamp>.xml
 <scenario_id>_result_<timestamp>.xml
 override_full_qml_summary_<timestamp>.xlsx
 override_ot_summary_<timestamp>.xlsx
+```
+
+## Logs
+
+Each working directory also has:
+
+```text
+working_dir/logs/
+```
+
+For JSON API requests that include `dir` or `pyrds_dir`, Pyrds writes a per-run text log file there. It contains:
+
+- the same log lines written to the terminal
+- the final HTTP response body returned to Swagger
+
+Typical log file names:
+
+```text
+2026-04-22_10-25-30_post_overrides_ot_ab12cd34.txt
+2026-04-22_10-26-11_post_backtest_full-qml_ef56gh78.txt
+```
+
+Example:
+
+```text
+2026-04-22 10:25:30,123 - pyrds.api - INFO - API request started | {'method': 'POST', 'path': '/overrides/ot', 'log_file': '.../logs/2026-04-22_10-25-30_post_overrides_ot_ab12cd34.txt'}
+2026-04-22 10:25:30,456 - pyrds.api - INFO - Started OT override pricing | {'qml_runner': 'QML_RUNNER'}
+2026-04-22 10:25:31,789 - pyrds.api - INFO - Finished OT override pricing | {'qml_runner': 'QML_RUNNER', 'manifest_path': '.../logs/override_ot_manifest_2026-04-22_10-25-30.json'}
+
+=== FINAL RESPONSE ===
+status_code: 200
+content_type: application/json
+body:
+{
+  "base_request": {
+    "raw_result_file": ".../results/base_request_result_2026-04-22_10-25-30.xml"
+  },
+  "scenario_one": {
+    "raw_result_file": ".../results/scenario_one_result_2026-04-22_10-25-31.xml"
+  },
+  "scenario_two": {
+    "status": "failed",
+    "error": "TransportError: ..."
+  }
+}
+```
+
+## Override Manifest
+
+Override runs also write a machine-readable manifest JSON under:
+
+```text
+working_dir/logs/
+```
+
+Typical file names:
+
+```text
+override_ot_manifest_<timestamp>.json
+override_full_qml_manifest_<timestamp>.json
+```
+
+The manifest stores run status, per-scenario status, errors, and dumped raw-result file paths. It does not embed raw QML.
+
+Example:
+
+```json
+{
+  "run_type": "override_ot",
+  "status": "partial_failure",
+  "dump": true,
+  "dump_excel": true,
+  "summary_excel_file": "/path/to/working_dir/results/override_ot_summary_2026-04-22_10-25-31.xlsx",
+  "base_request": {
+    "status": "succeeded",
+    "raw_result_file": "/path/to/working_dir/results/base_request_result_2026-04-22_10-25-30.xml"
+  },
+  "scenarios": {
+    "scenario_one": {
+      "status": "succeeded",
+      "raw_result_file": "/path/to/working_dir/results/scenario_one_result_2026-04-22_10-25-31.xml"
+    },
+    "scenario_two": {
+      "status": "failed",
+      "error": "RuntimeError: scenario_two failed"
+    }
+  }
+}
 ```
 
 ## Run The API

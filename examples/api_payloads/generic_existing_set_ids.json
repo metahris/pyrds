@@ -1,8 +1,12 @@
 {
   "dir": "working_dir",
-  "carto": "BASE",
   "ps_request": {
     "valuationDate": "2024/06/26 23:59:59",
+    "marketDataSetIds": [
+      "mkt_set_123456"
+    ],
+    "tradeSetId": "trade_set_789012",
+    "requestDataSetId": "request_set_345678",
     "gridPricerTechnicalDetails": {
       "cartography": "FRTB_BOCOLLAT",
       "analyseName": "MCR_MTM",
@@ -16,6 +20,6 @@
       "outputCurrency": "USD",
       "subtaskPolicy": "AlwaysDistribute"
     },
-    "lagInDaysForBackprice": -2
+    "lagInDaysForBackprice": 0
   }
 }

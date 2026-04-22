@@ -18,6 +18,14 @@ curl -X POST http://127.0.0.1:8000/computing/generic/ot \
   --data @examples/api_payloads/generic_ot_id.json
 ```
 
+To price directly from existing remote set ids:
+
+```bash
+curl -X POST http://127.0.0.1:8000/computing/generic/ot \
+  -H "Content-Type: application/json" \
+  --data @examples/api_payloads/generic_existing_set_ids.json
+```
+
 Backtest and stress are also exposed in Swagger:
 
 ```bash
@@ -58,6 +66,7 @@ Available payloads:
 
 - `create_working_dir.json`
 - `generic_ot_id.json`
+- `generic_existing_set_ids.json`
 - `generic_full_qml.json`
 - `generic_option_ny_mtm.json`
 - `generic_sne_mtm_custom.json`
@@ -87,6 +96,8 @@ See `docs/stress_payloads.md` for `scalar`, `vector`, `iter`, and scenario-count
 
 Compatibility status:
 
+- `generic_existing_set_ids.json` can be sent to `/computing/generic/ot` when `ps_request` already contains `marketDataSetIds`, `tradeSetId`, and `requestDataSetId`.
+- Do not use `generic_existing_set_ids.json` with `/computing/generic/full-qml`; that runner creates fresh sets from local QML files and overwrites set ids.
 - `backprice_full_qml.json` can be sent to `/computing/generic/full-qml`.
 - `backtest_full_qml.json` can be sent to `/backtest/full-qml`.
 - `stress_full_qml.json` can be sent to `/stress/full-qml` or `/stress/ot`; the API builds `StressRequest` internally.

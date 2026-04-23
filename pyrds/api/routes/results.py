@@ -408,11 +408,13 @@ def _add_func_duration_rows(
     for instruction_name, functions in (payload.get("instructions") or {}).items():
         row: dict[str, Any] = {"product": product_name}
         for function_name, metrics in functions.items():
-            column = _short_function_name(str(function_name))
+            method = _short_function_name(str(function_name))
             if isinstance(metrics, dict):
-                row[column] = metrics.get("duration")
+                row[f"duration_{method}"] = _duration_int_part(metrics.get("duration"))
+                row[f"nbrIter_{method}"] = metrics.get("nbIter")
             else:
-                row[column] = metrics
+                row[f"duration_{method}"] = _duration_int_part(metrics)
+                row[f"nbrIter_{method}"] = None
         sheets.setdefault(str(instruction_name), []).append(row)
 
 
@@ -434,6 +436,15 @@ def _excel_sheet_name(value: str, *, used_sheet_names: set[str]) -> str:
 
 def _short_function_name(value: str) -> str:
     return value.rsplit("::", 1)[-1]
+
+
+def _duration_int_part(value: Any) -> Any:
+    if value is None:
+        return None
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return value
 
 
 def _flatten_for_excel(value: Any, *, path: str = "") -> list[dict[str, Any]]:

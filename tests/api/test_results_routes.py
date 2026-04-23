@@ -318,14 +318,26 @@ def test_parse_func_duration_all_xml_files_dumps_product_function_excel(settings
 
     price_rows = pd.read_excel(workbook, sheet_name="PRICE").to_dict(orient="records")
     assert price_rows == [
-        {"product": "ProductA", "FunctionA": 10.5, "FunctionB": 3},
-        {"product": "ProductB", "FunctionA": 20.0, "FunctionB": 4},
+        {
+            "product": "ProductA",
+            "duration_FunctionA": 10,
+            "nbrIter_FunctionA": 1,
+            "duration_FunctionB": 3,
+            "nbrIter_FunctionB": 2,
+        },
+        {
+            "product": "ProductB",
+            "duration_FunctionA": 20,
+            "nbrIter_FunctionA": 1,
+            "duration_FunctionB": 4,
+            "nbrIter_FunctionB": 2,
+        },
     ]
 
     vegair_rows = pd.read_excel(workbook, sheet_name="VEGAIR").to_dict(orient="records")
     assert vegair_rows == [
-        {"product": "ProductA", "FunctionA": 2.5},
-        {"product": "ProductB", "FunctionA": 6.0},
+        {"product": "ProductA", "duration_FunctionA": 2, "nbrIter_FunctionA": 3},
+        {"product": "ProductB", "duration_FunctionA": 6, "nbrIter_FunctionA": 3},
     ]
 
 

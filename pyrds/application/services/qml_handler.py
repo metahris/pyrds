@@ -271,6 +271,20 @@ class QmlHandler:
         parsed.setdefault("product_name", product_name)
         return parsed
 
+    def parse_result_func_duration(self, result_qml: str) -> dict[str, Any]:
+        root = self._parse_xml(result_qml)
+        scenarios = root.findall("scenario")
+
+        if scenarios:
+            return {
+                scenario.get("name") or "WITHOUT_STRESS": self._parse_func_duration_container(
+                    scenario.find("results")
+                )
+                for scenario in scenarios
+            }
+
+        return self._parse_func_duration_container(root)
+
     def get_fx_tree(self, *, qml: str) -> list[dict[str, Any]]:
         root = self._parse_xml(qml)
         fx_spots = root.find("fxspots")
@@ -452,6 +466,46 @@ class QmlHandler:
                 except ValueError:
                     raise ResultParsingError(f"Invalid pricing duration value: {node.text}")
         return None
+
+    def _parse_func_duration_container(self, root: ET.Element | None) -> dict[str, Any]:
+        if root is None:
+            return {"product_name": None, "functions": {}, "instructions": {}}
+
+        parsed: dict[str, Any] = {
+            "product_name": self._product_name_from_root(root),
+            "functions": {},
+            "instructions": {},
+        }
+
+        for instruction in root.findall("instruction"):
+            instruction_name = instruction.get("name") or instruction.get("type") or "UNKNOWN"
+            func_duration = instruction.find("./base/funcDuration")
+            if func_duration is None:
+                continue
+
+            instruction_functions: dict[str, dict[str, Any]] = {}
+            for item in func_duration.findall("item"):
+                function_name = self._optional_text(item, "key")
+                if not function_name:
+                    continue
+
+                duration_text = self._optional_text(item, "val/duration")
+                if duration_text is None:
+                    continue
+
+                try:
+                    duration = float(duration_text)
+                except ValueError:
+                    raise ResultParsingError(f"Invalid function duration value: {duration_text}")
+
+                nb_iter = self._parse_optional_int(item, "val/nbIter")
+                instruction_functions[function_name] = {"duration": duration, "nbIter": nb_iter}
+                parsed["functions"][function_name] = parsed["functions"].get(function_name, 0.0) + duration
+
+            if instruction_functions:
+                parsed["instructions"][instruction_name] = instruction_functions
+
+        return parsed
 
     def _parse_price_container(self, root: ET.Element | None) -> dict[str, Any]:
         if root is None:
@@ -872,6 +926,29 @@ class QmlHandler:
         if node is None or node.text is None:
             return None
         return node.text.strip()
+
+    @classmethod
+    def _product_name_from_root(cls, root: ET.Element) -> str | None:
+        request = root.find("request")
+        if request is not None:
+            product = request.find("product")
+            if product is not None and product.text:
+                return product.text.strip()
+
+        product_name = root.find(".//ProductName")
+        if product_name is not None and product_name.text:
+            return product_name.text.strip()
+        return None
+
+    @classmethod
+    def _parse_optional_int(cls, parent: ET.Element, tag: str) -> int | None:
+        value = cls._optional_text(parent, tag)
+        if value is None:
+            return None
+        try:
+            return int(float(value))
+        except ValueError:
+            raise ResultParsingError(f"Invalid integer value for {tag}: {value}")
 
     @classmethod
     def _required_text(cls, parent: ET.Element, tag: str) -> str:

@@ -62,6 +62,14 @@ curl -X POST http://127.0.0.1:8000/results/parse/deltair \
   --data @examples/api_payloads/parse_result_file_deltair.json
 ```
 
+Parse every XML file under the working dir `results` folder by passing `file_name: "all"`:
+
+```bash
+curl -X POST http://127.0.0.1:8000/results/parse/price \
+  -H "Content-Type: application/json" \
+  --data @examples/api_payloads/parse_result_all_price.json
+```
+
 Available payloads:
 
 - `create_working_dir.json`
@@ -77,6 +85,9 @@ Available payloads:
 - `parse_result_file_deltair.json`
 - `parse_result_file_vegair.json`
 - `parse_result_file_calibration.json`
+- `parse_result_file_duration.json`
+- `parse_result_file_func_duration.json`
+- `parse_result_all_price.json`
 - `backtest_full_qml.json`
 - `stress_full_qml.json`
 - `qlib_reg_validator.json`

@@ -91,6 +91,8 @@ POST /results/parse/price
 POST /results/parse/deltair
 POST /results/parse/vegair
 POST /results/parse/calibration
+POST /results/parse/duration
+POST /results/parse/func-duration
 ```
 
 Result parsing accepts either raw QML:
@@ -107,6 +109,16 @@ or a result file already present under `results` in a Pyrds working dir:
 {
   "dir": "working_dir",
   "file_name": "result_trade.xml",
+  "dump_excel": true
+}
+```
+
+To parse every XML file under the working dir `results` folder for the selected parser, use `file_name: "all"`:
+
+```json
+{
+  "dir": "working_dir",
+  "file_name": "all",
   "dump_excel": true
 }
 ```

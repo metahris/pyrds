@@ -84,7 +84,10 @@ class ResultXmlParseRequest(BaseModel):
     )
     file_name: str | None = Field(
         default=None,
-        description="Result XML file name or relative path under the working directory results folder.",
+        description=(
+            "Result XML file name or relative path under the working directory results folder. "
+            "Use 'all' to parse every .xml file under results."
+        ),
     )
     dump_excel: bool = Field(default=False, description="Write parsed output as an Excel file in results.")
     excel_file_name: str | None = Field(default=None, description="Optional Excel file name when dump_excel=true.")

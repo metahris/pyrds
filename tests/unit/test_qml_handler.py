@@ -15,6 +15,52 @@ from tests.conftest import (
     VEGAIR_RESULT_QML,
 )
 
+FUNC_DURATION_RESULT_QML = """
+<results version="2">
+  <request version="2">
+    <product>Product.OT_TRADE_39981963_14#0</product>
+  </request>
+  <instruction name="PRICE" type="PRICE" version="3">
+    <base version="2">
+      <funcDuration>
+        <item>
+          <key>qlib::ExoticModel::autoCalibrationUsingPA</key>
+          <val>
+            <duration>5345.370058</duration>
+            <nbIter>1</nbIter>
+          </val>
+        </item>
+        <item>
+          <key>qlib::FinancialWorldRDPricer::forwardSwapRate</key>
+          <val>
+            <duration>88.65824699999996</duration>
+            <nbIter>26079</nbIter>
+          </val>
+        </item>
+      </funcDuration>
+    </base>
+  </instruction>
+  <instruction name="VEGAIR" type="HEDGE" version="2">
+    <base version="2">
+      <funcDuration>
+        <item>
+          <key>qlib::ExoticModel::autoCalibrationUsingPA</key>
+          <val>
+            <duration>5934368.865543999</duration>
+            <nbIter>288</nbIter>
+          </val>
+        </item>
+      </funcDuration>
+    </base>
+  </instruction>
+  <instruction name="DISPLAY_SENSIPOINTS" type="DISPLAY_SENSIPOINTS">
+    <base version="2">
+      <funcDuration />
+    </base>
+  </instruction>
+</results>
+"""
+
 
 def test_load_qmls_reads_only_xml_files(working_dir, logger) -> None:
     handler = QmlHandler(logger=logger)
@@ -247,6 +293,22 @@ def test_parse_calibration_result_extracts_calibration_info(logger) -> None:
         "calibration_info": "calibration info",
         "calibration_result": "OK",
     }
+
+
+def test_parse_func_duration_extracts_instruction_details_and_function_totals(logger) -> None:
+    handler = QmlHandler(logger=logger)
+
+    parsed = handler.parse_result_func_duration(result_qml=FUNC_DURATION_RESULT_QML)
+
+    assert parsed["product_name"] == "Product.OT_TRADE_39981963_14#0"
+    assert parsed["instructions"]["PRICE"]["qlib::FinancialWorldRDPricer::forwardSwapRate"] == {
+        "duration": 88.65824699999996,
+        "nbIter": 26079,
+    }
+    assert parsed["functions"]["qlib::ExoticModel::autoCalibrationUsingPA"] == pytest.approx(
+        5939714.235602
+    )
+    assert "DISPLAY_SENSIPOINTS" not in parsed["instructions"]
 
 
 def test_update_block_in_qml_raises_when_block_is_missing(logger) -> None:

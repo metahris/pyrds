@@ -1,0 +1,6 @@
+{
+  "dir": "working_dir",
+  "file_name": "all",
+  "dump_excel": true,
+  "excel_file_name": "all_price_results.xlsx"
+}

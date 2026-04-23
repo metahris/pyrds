@@ -27,13 +27,14 @@ def parse_price_result(
     parsed, excel_dir = _parse_result_request(
         request=request,
         settings=settings,
-        parser=lambda qml: handler.parse_result_price(result_qml=qml),
+        parser=lambda qml: _parse_price_with_product(handler=handler, qml=qml),
     )
     excel_path = _dump_excel_if_requested(
         request=request,
         parsed=parsed,
         excel_dir=excel_dir,
         default_name="price_result.xlsx",
+        rows_builder=_price_rows_for_excel,
     )
     log_api_event("Parse price result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
@@ -119,13 +120,14 @@ def parse_duration_result(
     parsed, excel_dir = _parse_result_request(
         request=request,
         settings=settings,
-        parser=lambda qml: handler.get_pricing_duration(result_qml=qml),
+        parser=lambda qml: _parse_duration_with_product(handler=handler, qml=qml),
     )
     excel_path = _dump_excel_if_requested(
         request=request,
         parsed=parsed,
         excel_dir=excel_dir,
         default_name="duration_result.xlsx",
+        rows_builder=_duration_rows_for_excel,
     )
     log_api_event("Parse duration result finished", excel_path=excel_path)
     return ParsedResultResponse(parsed=parsed, excel_path=excel_path)
@@ -159,6 +161,20 @@ def _source_label(request: ResultXmlParseRequest) -> str:
     if request.inline_xml:
         return "inline_xml"
     return f"{request.pyrds_dir}/{request.file_name}"
+
+
+def _parse_price_with_product(*, handler: Any, qml: str) -> dict[str, Any]:
+    parsed = handler.parse_result_price(result_qml=qml)
+    if isinstance(parsed, dict):
+        parsed.setdefault("product_name", handler.get_product_name(qml))
+    return parsed
+
+
+def _parse_duration_with_product(*, handler: Any, qml: str) -> dict[str, Any]:
+    return {
+        "product_name": handler.get_product_name(qml),
+        "duration": handler.get_pricing_duration(result_qml=qml),
+    }
 
 
 def _parse_result_request(
@@ -282,6 +298,80 @@ def _write_func_duration_excel(parsed: Any, excel_path: Path) -> None:
             pd.DataFrame(rows or [{"product_name": None}]).to_excel(writer, sheet_name=sheet_name, index=False)
 
 
+def _price_rows_for_excel(parsed: Any) -> list[dict[str, Any]]:
+    if _looks_like_price_payload(parsed):
+        return [_price_row(parsed, fallback_product=None)]
+
+    if isinstance(parsed, dict):
+        rows: list[dict[str, Any]] = []
+        for source, item in parsed.items():
+            if _looks_like_price_payload(item):
+                rows.append(_price_row(item, fallback_product=source))
+        if rows:
+            return rows
+
+    return _flatten_for_excel(parsed)
+
+
+def _duration_rows_for_excel(parsed: Any) -> list[dict[str, Any]]:
+    if _looks_like_duration_payload(parsed):
+        return [_duration_row(parsed, fallback_product=None)]
+
+    if isinstance(parsed, dict):
+        rows: list[dict[str, Any]] = []
+        for source, item in parsed.items():
+            if _looks_like_duration_payload(item):
+                rows.append(_duration_row(item, fallback_product=source))
+        if rows:
+            return rows
+
+    return _flatten_for_excel(parsed)
+
+
+def _looks_like_duration_payload(value: Any) -> bool:
+    return isinstance(value, dict) and "duration" in value
+
+
+def _duration_row(value: dict[str, Any], *, fallback_product: str | None) -> dict[str, Any]:
+    return {
+        "product": value.get("product_name") or fallback_product,
+        "duration": value.get("duration"),
+    }
+
+
+def _looks_like_price_payload(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("PRICE"), dict)
+
+
+def _price_row(value: dict[str, Any], *, fallback_product: str | None) -> dict[str, Any]:
+    price_items = value.get("PRICE") or {}
+    row: dict[str, Any] = {"product": value.get("product_name") or fallback_product}
+    currency: Any = None
+
+    for item_name, item in price_items.items():
+        if not isinstance(item, dict):
+            continue
+
+        column = str(item_name).strip().lower() or "price"
+        row[column] = _coerce_numeric_for_excel(item.get("price"))
+        currency = currency or item.get("currency")
+
+    row["currency"] = currency
+    return row
+
+
+def _coerce_numeric_for_excel(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    try:
+        numeric = float(value)
+    except ValueError:
+        return value
+    if numeric.is_integer():
+        return int(numeric)
+    return numeric
+
+
 def _func_duration_sheets_for_excel(parsed: Any) -> dict[str, list[dict[str, Any]]]:
     sheets: dict[str, list[dict[str, Any]]] = {}
 
@@ -316,12 +406,13 @@ def _add_func_duration_rows(
 ) -> None:
     product_name = payload.get("product_name") or fallback_product_name
     for instruction_name, functions in (payload.get("instructions") or {}).items():
-        row: dict[str, Any] = {"product_name": product_name}
+        row: dict[str, Any] = {"product": product_name}
         for function_name, metrics in functions.items():
+            column = _short_function_name(str(function_name))
             if isinstance(metrics, dict):
-                row[function_name] = metrics.get("duration")
+                row[column] = metrics.get("duration")
             else:
-                row[function_name] = metrics
+                row[column] = metrics
         sheets.setdefault(str(instruction_name), []).append(row)
 
 
@@ -339,6 +430,10 @@ def _excel_sheet_name(value: str, *, used_sheet_names: set[str]) -> str:
         index += 1
     used_sheet_names.add(sheet_name)
     return sheet_name
+
+
+def _short_function_name(value: str) -> str:
+    return value.rsplit("::", 1)[-1]
 
 
 def _flatten_for_excel(value: Any, *, path: str = "") -> list[dict[str, Any]]:

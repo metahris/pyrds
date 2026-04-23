@@ -50,6 +50,33 @@ FUNC_DURATION_TEMPLATE = """
 </results>
 """
 
+PRICE_EXCEL_TEMPLATE = """
+<results>
+  <request>
+    <product>{product}</product>
+  </request>
+  <instruction name="PRICE">
+    <base>
+      <duration>123</duration>
+    </base>
+    <output>
+      <item name="total">
+        <price>{total}</price>
+        <currency>USD</currency>
+      </item>
+      <item name="underlying">
+        <price>{underlying}</price>
+        <currency>USD</currency>
+      </item>
+      <item name="option">
+        <price>{option}</price>
+        <currency>USD</currency>
+      </item>
+    </output>
+  </instruction>
+</results>
+"""
+
 
 class DummyClient:
     logger = None
@@ -127,7 +154,47 @@ def test_parse_duration_result_file(settings, monkeypatch) -> None:
         app.dependency_overrides.clear()
 
     assert response.status_code == 200
-    assert response.json()["parsed"] == 123
+    assert response.json()["parsed"] == {"product_name": "TradeA", "duration": 123}
+
+
+def test_parse_duration_all_xml_files_dumps_product_duration_excel(settings, monkeypatch) -> None:
+    files_path, _ = create_working_dir(settings=settings, name="duration-excel-work")
+    results_dir = Path(files_path.results)
+    (results_dir / "first.xml").write_text(PRICE_RESULT_QML, encoding="utf-8")
+    (results_dir / "second.xml").write_text(
+        PRICE_RESULT_QML.replace("TradeA", "TradeB").replace("<duration>123</duration>", "<duration>456</duration>"),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("pyrds.api.main.get_client", lambda: DummyClient())
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_client] = lambda: DummyClient()
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/results/parse/duration",
+                json={
+                    "dir": "duration-excel-work",
+                    "file_name": "all",
+                    "dump_excel": True,
+                    "excel_file_name": "durations.xlsx",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["parsed"]["first.xml"] == {"product_name": "TradeA", "duration": 123}
+    assert payload["parsed"]["second.xml"] == {"product_name": "TradeB", "duration": 456}
+
+    import pandas as pd
+
+    rows = pd.read_excel(payload["excel_path"]).to_dict(orient="records")
+    assert rows == [
+        {"product": "TradeA", "duration": 123},
+        {"product": "TradeB", "duration": 456},
+    ]
 
 
 def test_parse_price_all_xml_files(settings, monkeypatch) -> None:
@@ -156,6 +223,48 @@ def test_parse_price_all_xml_files(settings, monkeypatch) -> None:
     assert sorted(parsed) == ["first.xml", "nested/second.xml"]
     assert parsed["first.xml"]["PRICE"]["total"]["price"] == "42.5"
     assert parsed["nested/second.xml"]["PRICE"]["total"]["price"] == "84.0"
+
+
+def test_parse_price_all_xml_files_dumps_compact_price_excel(settings, monkeypatch) -> None:
+    files_path, _ = create_working_dir(settings=settings, name="price-excel-work")
+    results_dir = Path(files_path.results)
+    (results_dir / "first.xml").write_text(
+        PRICE_EXCEL_TEMPLATE.format(product="ProductA", total="36156", underlying="34320", option="18358"),
+        encoding="utf-8",
+    )
+    (results_dir / "second.xml").write_text(
+        PRICE_EXCEL_TEMPLATE.format(product="ProductB", total="10.5", underlying="8", option="2.5"),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("pyrds.api.main.get_client", lambda: DummyClient())
+    app.dependency_overrides[get_settings] = lambda: settings
+    app.dependency_overrides[get_client] = lambda: DummyClient()
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/results/parse/price",
+                json={
+                    "dir": "price-excel-work",
+                    "file_name": "all",
+                    "dump_excel": True,
+                    "excel_file_name": "prices.xlsx",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["parsed"]["first.xml"]["product_name"] == "ProductA"
+
+    import pandas as pd
+
+    rows = pd.read_excel(payload["excel_path"]).to_dict(orient="records")
+    assert rows == [
+        {"product": "ProductA", "total": 36156.0, "underlying": 34320, "option": 18358.0, "currency": "USD"},
+        {"product": "ProductB", "total": 10.5, "underlying": 8, "option": 2.5, "currency": "USD"},
+    ]
 
 
 def test_parse_func_duration_all_xml_files_dumps_product_function_excel(settings, monkeypatch) -> None:
@@ -209,14 +318,14 @@ def test_parse_func_duration_all_xml_files_dumps_product_function_excel(settings
 
     price_rows = pd.read_excel(workbook, sheet_name="PRICE").to_dict(orient="records")
     assert price_rows == [
-        {"product_name": "ProductA", "qlib::FunctionA": 10.5, "qlib::FunctionB": 3},
-        {"product_name": "ProductB", "qlib::FunctionA": 20.0, "qlib::FunctionB": 4},
+        {"product": "ProductA", "FunctionA": 10.5, "FunctionB": 3},
+        {"product": "ProductB", "FunctionA": 20.0, "FunctionB": 4},
     ]
 
     vegair_rows = pd.read_excel(workbook, sheet_name="VEGAIR").to_dict(orient="records")
     assert vegair_rows == [
-        {"product_name": "ProductA", "qlib::FunctionA": 2.5},
-        {"product_name": "ProductB", "qlib::FunctionA": 6.0},
+        {"product": "ProductA", "FunctionA": 2.5},
+        {"product": "ProductB", "FunctionA": 6.0},
     ]
 
 
